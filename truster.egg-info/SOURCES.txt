@@ -1,0 +1,13 @@
+README.md
+setup.py
+src/truster/__init__.py
+src/truster/bcolors.py
+src/truster/cluster.py
+src/truster/experiment.py
+src/truster/jobHandler.py
+src/truster/sample.py
+src/truster/py_scripts/filterUMIs
+truster.egg-info/PKG-INFO
+truster.egg-info/SOURCES.txt
+truster.egg-info/dependency_links.txt
+truster.egg-info/top_level.txt

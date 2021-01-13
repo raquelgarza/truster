@@ -1,0 +1,38 @@
+#!python
+
+import sys
+import getopt
+import pysam
+
+def main(argv):
+   inbam = ''
+   outbam = ''
+   try:
+      opts, args = getopt.getopt(argv,"hi:o:",["inbam=","outbam="])
+   except getopt.GetoptError:
+      print('filterUMIs.py -i <inbam> -o <outbam>')
+      sys.exit(2)
+   for opt, arg in opts:
+      if opt == '-h':
+         print('filterUMIs.py -i <inbam> -o <outbam>')
+         sys.exit()
+      elif opt in ("-i", "--inbam"):
+         inbam = arg
+      elif opt in ("-o", "--outbam"):
+         outbam = arg
+
+   infile = pysam.AlignmentFile(inbam, "rb")
+   outfile = pysam.AlignmentFile(outbam, "wb", template=infile)
+   cb_umi=set()
+   for read in infile:
+     seq = read.query_sequence
+     cb = str([x[1] for x in read.tags if x[0] == "CB"])
+     umi = str([x[1] for x in read.tags if x[0] == "UR"])
+
+     query = [seq, cb, umi]
+     if tuple(query) not in cb_umi:
+       cb_umi.add(tuple(query))
+       outfile.write(read)
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
