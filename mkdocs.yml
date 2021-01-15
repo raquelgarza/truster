@@ -1,0 +1,5 @@
+site_name: trusTEr
+nav:
+  - Introduction: index.md
+  - Workflow: workflow.md
+theme: readthedocs
