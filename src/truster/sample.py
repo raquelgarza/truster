@@ -100,7 +100,7 @@ class Sample:
                     exitCode = jobHandler.waitForJob(jobId)
                     print(jobHandler.checkExitCodes("getClusters", ("Sample " + self.sampleId),jobId, exitCode))
                     if exitCode == 0:
-                        self.clusters = [clusterTruster(j.split(".tsv")[0], os.path.join(outdir, j)) for j in os.listdir(outdir) if j.endswith(".tsv")]
+                        self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j)) for j in os.listdir(outdir) if j.endswith(".tsv")]
                         self.rdataPath = os.path.join(outdir, (self.sampleId + ".Rdata"))
                     return exitCode
                 except:
@@ -110,6 +110,10 @@ class Sample:
                 subprocess.call(cmd)
         except KeyboardInterrupt:
             print(bcolors.HEADER + "User interrupted" + bcolors.ENDC)
+
+    def registerClustersFromPath(self, path):
+        self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(path, j)) for j in os.listdir(path) if j.endswith(".tsv")]
+        self.rdataPath = os.path.join(path, (self.sampleId + ".Rdata"))
 
     def normalizeTEcounts(self, indir, outdir):
         try:

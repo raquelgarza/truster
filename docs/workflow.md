@@ -85,7 +85,7 @@ You will also get an RData file in the output directory with the Seurat object o
 If you already have a clustering of your preference, please produce the required tsv files and set the clusters directory as:
 
 ```
-example.setProcessClustersOutdir(processClustersOutdir = outdir)
+example.setClustersOutdir(processClustersOutdir = outdir)
 ```
 
 We could add a function in the near future that takes RData with a Seurat object and produces the tsv files in the file structure we need it. 
@@ -211,10 +211,10 @@ The output directory now contains a subdirectory called `TEcounts/` with samples
 
 ##### 7) TE counts normalization
 
-Before continuing with the downstream analysis, we need to normalize for each of the samples' sequencing depth and the clusters size. 
+Before continuing with the downstream analysis, we need to normalize for samples' sequencing depth and cluster size. We can do this for all samples using
 
 ```
-some code i havent written
+example.normalizeTECounts("merged")
 ```
 
 And that's it! You can now see your final count matrix at the output directory and if you want you can use our plot_TEexpression.R script to plot a UMAP with TE subfamilies expression. 
