@@ -28,8 +28,8 @@ if (is.null(opt$inpath) | is.null(opt$outpath) ){
 
 paths <- trimws(unlist(str_split(opt$inpath, ',')))
 ids <- trimws(unlist(str_split(opt$ids, ',')))
-outpath <- opt$outpath
-experiment_name <- opt$experimentName
+outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/', sep=''))
+experiment_name <- trimws(opt$experimentName)
 
 print(c("Input paths: ", paths))
 print(c("Input ids: ", ids))

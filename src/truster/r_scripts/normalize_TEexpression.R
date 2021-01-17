@@ -38,7 +38,7 @@ if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$RData) | is.null(opt$
   stop("All argument must be supplied.", call.=FALSE)
 }
 
-mode <- opt$mode
+mode <- trimws(opt$mode)
 rdata <- opt$RData
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))

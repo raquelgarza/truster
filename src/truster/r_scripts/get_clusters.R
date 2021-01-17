@@ -5,6 +5,7 @@ library(Seurat)
 library(stringr)
 library(dplyr)
 library(patchwork)
+library(data.table)
 set.seed(10)
 
 option_list = list(
@@ -13,7 +14,9 @@ option_list = list(
   make_option(c("-o", "--outpath"), type="character", default=NULL,
               help="Output path", metavar="character"),
   make_option(c("-s", "--sample"), type="character", default=NULL,
-              help="Sample name", metavar="character")
+              help="Sample name", metavar="character"),
+  make_option(c("-e", "--exclude"), type="character", default=NULL,
+              help="Exclude cells", metavar="character")
 );
 
 opt_parser = OptionParser(option_list=option_list);
@@ -24,10 +27,15 @@ if (is.null(opt$inpath) | is.null(opt$outpath) | is.null(opt$sample)){
   stop("All argument must be supplied.", call.=FALSE)
 }
 
-path <- opt$inpath
-sample_name <- opt$sample
-outpath <- opt$outpath
+path <- ifelse(endsWith(opt$inpath, "/"), opt$inpath, paste(opt$inpath, '/', sep=''))
+sample_name <- trimws(opt$sample)
+outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/', sep=''))
+exclude <- opt$exclude
 
+if(!is.null(exclude)){
+  excluding <- fread(exclude, data.table = F, header = F)[,1]
+  print(paste("Excluding some cells from ", exclude))
+}
 #print(path)
 #print(sample_name)
 
@@ -37,6 +45,14 @@ sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 sample <- NormalizeData(sample, normalization.method = "LogNormalize", scale.factor = 10000)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
+
+if(!is.null(exclude)){
+  print(paste("sample used to have ", ncol(sample), "cells"))
+  print(paste("We exclude ", length(excluding)))
+  sample <- subset(sample, cells = colnames(sample)[which(!colnames(sample) %in% excluding)])
+  print(paste("sample now has ", ncol(sample), "cells"))
+}
+
 sample <- ScaleData(sample, features = all.genes)
 sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 sample <- FindNeighbors(sample, dims = 1:10)
@@ -56,4 +72,10 @@ for (k in 1:length(unique(df$clusters))){
     write.table(df.cluster$barcode, file = file_name, row.names = F, col.names = F, quote = F)
 }
 
-save(sample, file=paste(outpath, '/', sample_name, ".RData", sep=''))
+if(!is.null(exclude)){
+  save(sample, excluding, file = paste(outpath, '/', sample_name, ".RData", sep=''))
+}else{
+  save(sample, file = paste(outpath, '/', sample_name, ".RData", sep=''))  
+}
+
+
