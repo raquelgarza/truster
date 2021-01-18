@@ -650,8 +650,8 @@ class Experiment:
                 msg = "Running " + current_instruction
                 log.write(msg)
                 
-                # tsvToBam_allSuccess = self.tsvToBamClusters(mode, outdir, jobs)
-                tsvToBam_allSuccess = True
+                tsvToBam_allSuccess = self.tsvToBamClusters(mode, outdir, jobs)
+                # tsvToBam_allSuccess = True
 
                 if tsvToBam_allSuccess:
                     current_instruction = "filterUMIs"
