@@ -27,7 +27,7 @@ class Experiment:
                         msg = "Configuration file loaded.\n"
                         log.write(msg)
                 except FileNotFoundError:
-                    msg = Bcolors.FAIL + "Error: Cluster configuration file not found" + Bcolors.ENDC
+                    msg = Bcolors.FAIL + "Error: Cluster configuration file not found" + Bcolors.ENDC + "\n"
                     print(msg)
                     log.write(msg)
                     return 1
@@ -39,7 +39,7 @@ class Experiment:
                         msg = "Software modules json loaded.\n"
                         log.write(msg)
                 except FileNotFoundError:
-                    msg = Bcolors.FAIL + "Error: Module configuration file not found" + Bcolors.ENDC
+                    msg = Bcolors.FAIL + "Error: Module configuration file not found" + Bcolors.ENDC + "\n"
                     print(msg)
                     log.write(msg)
                     return 1
@@ -80,7 +80,7 @@ class Experiment:
                     executor.submit(sample.quantify, crIndex, sampleIndir, sampleOutdir)
             self.quantifyOutdir = outdir
         except KeyboardInterrupt:
-            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + ".\n"
+            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
@@ -121,7 +121,7 @@ class Experiment:
                         log.write(msg)
                 
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + ".\n"
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
                 log.write(msg)
 
     def setClustersOutdir(self, clustersOutdir):
@@ -158,7 +158,7 @@ class Experiment:
                     executor.submit(sample.velocity, TE_gtf, geneGTF, sampleIndir)
                 executor.shutdown(wait=True)
         except KeyboardInterrupt:
-            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + "\n"
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
@@ -260,17 +260,30 @@ class Experiment:
 
     def setMergeSamplesOutdir(self, mergeSamplesOutdir):
         self.mergeSamplesOutdir = mergeSamplesOutdir
+        # For each of the registered samples
+        self.mergeSamples = copy.deepcopy(self.samples)
+    
+        # Empty the clusters bc we made new ones (shared/merged)
+        for k,v in self.mergeSamples.items():
+            v.emptyClusters()
+
         for i in os.listdir(mergeSamplesOutdir):
             if(i.endswith(".tsv")):
                 clusterName = i.split(".tsv")[0]
                 sampleId = clusterName.split("_merged.clusters")[0]
                 cluster = Cluster(clusterName = clusterName, tsv = os.path.join(mergeSamplesOutdir, i), logfile = self.logfile)
+
                 # print(sampleId, cluster)
                 # print(self.mergeSamples[sampleId].clusters)
                 self.mergeSamples[sampleId].clusters.append(cluster)
-        # print([j.clusters for j in self.mergeSamples.values()])
+
         with open(self.logfile, "a") as log:
-            msg = "The directory for clusters of combined samples is set to: " + mergeSamplesOutdir + ".\n"
+            msg = "The directory for clusters of combined samples is set to: " + mergeSamplesOutdir + ".\n\n"
+            log.write(msg)
+
+            registeredClusters = [sample.clusters for sampleId,sample in self.mergeSamples.items()]
+            namesRegisteredClusters = ', '.join([cluster.clusterName for listOfClusters in registeredClusters for cluster in listOfClusters])
+            msg = "Registered mergeSamples clusters per sample: " + namesRegisteredClusters + "\n\n"
             log.write(msg)
 
     def tsvToBamClusters(self, mode, outdir, jobs=1):
@@ -298,20 +311,27 @@ class Experiment:
                             outdir_sample = os.path.join(outdir, "tsvToBam/", sampleId)
                             # args = [sampleId, bam, outdir_sample, self.slurm, self.modules]
                             # self.tsvToBam_results.append(executor.submit(lambda p: cluster.tsvToBam(*p), args))
-                            self.tsvToBam_results.append(executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules))
+                            exitCode = executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules)
+                            self.tsvToBam_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from tsvToBam.\n"
+                            log.write(msg)
                 tsvToBam_exitCodes = [i.result()[1] for i in self.tsvToBam_results]
                 tsvToBam_allSuccess = all(exitCode == 0 for exitCode in tsvToBam_exitCodes)
 
                 if tsvToBam_allSuccess:
-                    return 0
+                    msg = "\ntsvToBam finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\ntsvToBam did not finished succesfully for all samples\n"
+                    log.write(msg)
+                    return False
 
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing tsvToBam for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing tsvToBam for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
- 
+
     def filterUMIsClusters(self, mode, outdir, jobs=1):
         with open(self.logfile, "a") as log:
             try:
@@ -326,27 +346,35 @@ class Experiment:
                         log.write(msg)
                         return 2
 
-                    self.filterUMIs_results = []
-                    msg = "Extracting cell barcodes from BAM files.\n"
-                    log.write(msg)
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                        for sampleId, sample in samplesDict.items():
-                            for cluster in sample.clusters:
-                                inbam = os.path.join(outdir, "tsvToBam/", sampleId, (cluster.clusterName + ".bam"))
-                                outdir_sample = os.path.join(outdir, "filterUMIs/", sampleId)
-                                #clusters = self.mergeSamplesClusters[sampleId]
-                                # args = [sampleId, inbam, outdir_sample, self.slurm, self.modules]
-                                # self.filterUMIs_results.append(executor.submit(lambda p: cluster.filterUMIs(*p), args))
-                                self.filterUMIs_results.append(executor.submit(cluster.filterUMIs, sampleId, inbam, outdir_sample, self.slurm, self.modules))
-                    filterUMIs_exitCodes = [i.result()[1] for i in self.filterUMIs_results]
-                    filterUMIs_allSuccess = all(exitCode == 0 for exitCode in filterUMIs_exitCodes)
-
+                self.filterUMIs_results = []
+                msg = "Extracting cell barcodes from BAM files.\n"
+                log.write(msg)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                    for sampleId, sample in samplesDict.items():
+                        for cluster in sample.clusters:
+                            inbam = os.path.join(outdir, "tsvToBam/", sampleId, (cluster.clusterName + ".bam"))
+                            outdir_sample = os.path.join(outdir, "filterUMIs/", sampleId)
+                            #clusters = self.mergeSamplesClusters[sampleId]
+                            # args = [sampleId, inbam, outdir_sample, self.slurm, self.modules]
+                            # self.filterUMIs_results.append(executor.submit(lambda p: cluster.filterUMIs(*p), args))
+                            exitCode = executor.submit(cluster.filterUMIs, sampleId, inbam, outdir_sample, self.slurm, self.modules)
+                            self.filterUMIs_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from filterUMIs.\n"
+                            log.write(msg)
+                filterUMIs_exitCodes = [i.result()[1] for i in self.filterUMIs_results]
+                filterUMIs_allSuccess = all(exitCode == 0 for exitCode in filterUMIs_exitCodes)
+                
                 if filterUMIs_allSuccess:
-                    return 0
+                    msg = "\nfilterUMIs finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\nfilterUMIs did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
+
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing filterUMIs for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing filterUMIs for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
  
@@ -374,16 +402,23 @@ class Experiment:
                             outdir_sample = os.path.join(outdir, "bamToFastq/", sampleId)
                             # args = [sampleId, bam, outdir_sample, self.slurm, self.modules]
                             # self.bamToFastq_results.append(executor.submit(lambda p: cluster.bamToFastq(*p), args))
-                            self.bamToFastq_results.append(executor.submit(cluster.bamToFastq, sampleId, bam, outdir_sample, self.slurm, self.modules))
+                            exitCode = executor.submit(cluster.bamToFastq, sampleId, bam, outdir_sample, self.slurm, self.modules)
+                            self.bamToFastq_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from bamToFastq.\n"
+                            log.write(msg)
                 bamToFastq_exitCodes = [i.result()[1] for i in self.bamToFastq_results]
                 bamToFastq_allSuccess = all(exitCode == 0 for exitCode in bamToFastq_exitCodes)
 
                 if bamToFastq_allSuccess:
-                    return 0
+                    msg = "\nbamToFastq finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\nbamToFastq did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing bamToFastq for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing bamToFastq for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
 
@@ -411,16 +446,23 @@ class Experiment:
                             outdir_sample = os.path.join(outdir, "concatenateLanes/", sampleId)
                             # args = [sampleId, indir, outdir_sample, self.slurm, self.modules]
                             # self.concatenateLanes_results.append(executor.submit(lambda p: cluster.concatenateLanes(*p), args))
-                            self.concatenateLanes_results.append(executor.submit(cluster.concatenateLanes, sampleId, indir, outdir_sample, self.slurm, self.modules))
+                            exitCode = executor.submit(cluster.concatenateLanes, sampleId, indir, outdir_sample, self.slurm, self.modules)
+                            self.concatenateLanes_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from concatenateLanes.\n"
+                            log.write(msg)
                 concatenateLanes_exitCodes = [i.result()[1] for i in self.concatenateLanes_results]
                 concatenateLanes_allSuccess = all(exitCode == 0 for exitCode in concatenateLanes_exitCodes)
 
                 if concatenateLanes_allSuccess:
-                    return 0
+                    msg = "\nConcatenateLanes finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\nConcatenateLanes did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing concatenateLanes for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing concatenateLanes for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
 
@@ -448,16 +490,23 @@ class Experiment:
                             outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
                             # args = [sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules]
                             # self.mapCluster_results.append(executor.submit(lambda p: cluster.mapCluster(*p), args))
-                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules))
+                            exitCode = executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules)
+                            self.mapCluster_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from mapCluster.\n"
+                            log.write(msg)
                 mapCluster_exitCodes = [i.result()[1] for i in self.mapCluster_results]
                 mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
 
                 if mapCluster_allSuccess:
-                    return 0
+                    msg = "\nMapCluster finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\nMapCluster did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing mapping for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing mapping for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
         
@@ -485,16 +534,23 @@ class Experiment:
                             outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
                             # args = [self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules]
                             # self.TEcounts_results.append(executor.submit(lambda p: cluster.TEcount(*p), args))
-                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
+                            exitCode = executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules)
+                            self.TEcounts_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from TEcount.\n"
+                            log.write(msg)
                 TEcounts_exitCodes = [i.result()[1] for i in self.TEcounts_results]
                 TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
 
                 if TEcountsCluster_allSuccess:
-                    return 0
+                    msg = "\nTEcounts finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
                 else:
-                    return 1
+                    msg = "\nTEcounts did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing TEcounts for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                msg = Bcolors.HEADER + "User interrupted. Finishing TEcounts for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                 print(msg)
                 log.write(msg)
 
@@ -538,9 +594,13 @@ class Experiment:
                     self.mergeNormalizedTEcountsOutdir = outdir
 
                     if exitCode:
-                        return 0
+                        msg = "\nTE normalization finished succesfully!\n"
+                        log.write(msg)
+                        return True
                     else:
-                        return 1
+                        msg = "\nTE normalization did not finished succesfully.\n"
+                        log.write(msg)
+                        return False
                 else:
                     self.normalized_results = []
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -549,17 +609,24 @@ class Experiment:
                             sampleOutdir = os.path.join(outdir, sample.sampleId)
                             # args = [sampleIndir, sampleOutdir]
                             # self.normalized_results.append(executor.submit(lambda p: sample.normalizeTEcounts(*p), args))
-                            self.normalized_results.append(executor.submit(sample.normalizeTEcounts, sampleIndir, sampleOutdir))
+                            exitCode = executor.submit(sample.normalizeTEcounts, sampleIndir, sampleOutdir)
+                            self.normalized_results.append(exitCode)
+                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from TE count normalization.\n"
+                            log.write(msg)
                             sample.NormalizedOutdir = outdir
                     normalized_exitCodes = [i.result()[1] for i in self.normalized_results]
                     normalized_allSuccess = all(exitCode == 0 for exitCode in normalized_exitCodes)
 
                     if normalized_allSuccess:
-                        return 0
+                        msg = "\nTE normalization finished succesfully for all samples!\n"
+                        log.write(msg)
+                        return True
                     else:
-                        return 1
+                        msg = "\nTE normalization did not finished succesfully for all samples.\n"
+                        log.write(msg)
+                        return False
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 print(msg)
                 log.write(msg)
 
@@ -572,7 +639,7 @@ class Experiment:
                     samplesDict = self.mergeSamples
                 else:
                     if mode == "perSample":    
-                            samplesDict = self.samples
+                        samplesDict = self.samples
                     else:
                         msg = "Please specify a mode (merged/perSample)"
                         print(msg)
@@ -580,48 +647,28 @@ class Experiment:
                         return 2
 
                 current_instruction = "tsvToBam"
-                tsvToBam_allSuccess = self.tsvToBamClusters(mode, outdir, jobs)
+                msg = "Running " + current_instruction
+                log.write(msg)
                 
-                # self.tsvToBam_results = []
-                # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                #     for sampleId, sample in samplesDict.items():
-                #         for cluster in sample.clusters:
-                #             bam = os.path.join(self.quantifyOutdir, sampleId, "outs/possorted_genome_bam.bam")
-                #             outdir_sample = os.path.join(outdir, "tsvToBam/", sampleId)
-                #             self.tsvToBam_results.append(executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules))
-                # tsvToBam_exitCodes = [i.result()[1] for i in self.tsvToBam_results]
-                # tsvToBam_allSuccess = all(exitCode == 0 for exitCode in tsvToBam_exitCodes)
+                # tsvToBam_allSuccess = self.tsvToBamClusters(mode, outdir, jobs)
+                tsvToBam_allSuccess = True
 
                 if tsvToBam_allSuccess:
                     current_instruction = "filterUMIs"
+                    msg = "tsvToBam finished! Moving on to " + current_instruction
+                    log.write(msg)
                     filterUMIs_allSuccess = self.filterUMIsClusters(mode, outdir, jobs)
 
-                    # self.filterUMIs_results = []
-                    # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                    #     for sampleId, sample in samplesDict.items():
-                    #         for cluster in sample.clusters:
-                    #             inbam = os.path.join(outdir, "tsvToBam/", sampleId, (cluster.clusterName + ".bam"))
-                    #             outdir_sample = os.path.join(outdir, "filterUMIs/", sampleId)
-                    #             #clusters = self.mergeSamplesClusters[sampleId]
-                    #             self.filterUMIs_results.append(executor.submit(cluster.filterUMIs, sampleId, inbam, outdir_sample, self.slurm, self.modules))
-                    # filterUMIs_exitCodes = [i.result()[1] for i in self.filterUMIs_results]
-                    # filterUMIs_allSuccess = all(exitCode == 0 for exitCode in filterUMIs_exitCodes)
                     if filterUMIs_allSuccess:
                         current_instruction = "bamToFastq"
+                        msg = "filterUMIs finished! Moving on to " + current_instruction
+                        log.write(msg)
                         bamToFastq_allSuccess = self.bamToFastqClusters(mode, outdir, jobs)
-                        
-                        # self.bamToFastq_results = []
-                        # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                        #     for sampleId, sample in samplesDict.items():
-                        #         for cluster in sample.clusters:
-                        #             bam = os.path.join(outdir, "filterUMIs/", sampleId, (cluster.clusterName + "_filtered.bam"))
-                        #             outdir_sample = os.path.join(outdir, "bamToFastq/", sampleId)
-                        #             self.bamToFastq_results.append(executor.submit(cluster.bamToFastq, sampleId, bam, outdir_sample, self.slurm, self.modules))
-                        # bamToFastq_exitCodes = [i.result()[1] for i in self.bamToFastq_results]
-                        # bamToFastq_allSuccess = all(exitCode == 0 for exitCode in bamToFastq_exitCodes)
         
                         if bamToFastq_allSuccess:
                             current_instruction = "concatenateLanes"
+                            msg = "bamToFastq finished! Moving on to " + current_instruction
+                            log.write(msg)
                             concatenateLanes_allSuccess = self.concatenateLanesClusters(mode, outdir, jobs)
 
                             # self.concatenateLanes_results = []
@@ -636,6 +683,8 @@ class Experiment:
 
                             if concatenateLanes_allSuccess:
                                 current_instruction = "mapCluster"
+                                msg = "concatenateLanes finished! Moving on to " + current_instruction
+                                log.write(msg)
                                 mapCluster_allSuccess = self.mapClusters(mode, outdir, geneGTF, starIndex, jobs)
 
                                 # self.mapCluster_results = []
@@ -649,6 +698,8 @@ class Experiment:
                                 # mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
                                 if mapCluster_allSuccess:
                                     current_instruction = "TEcounts"
+                                    msg = "mapCluster finished! Moving on to " + current_instruction
+                                    log.write(msg)
                                     TEcounts_allSuccess = self.TEcountsClusters(mode, outdir, geneGTF, teGTF, jobs)
 
                                     # self.TEcounts_results = []
@@ -662,6 +713,8 @@ class Experiment:
                                     # TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
                                     if TEcounts_allSuccess:
                                         current_instruction = "normalizeTEcounts"
+                                        msg = "TEcounts finished! Moving on to " + current_instruction
+                                        log.write(msg)
                                         normalizeTEcounts_allSuccess = self.normalizeTECountsCluster(mode, jobs)
                                     else:
                                         msg = "Error in normalizeTEcounts"
@@ -694,7 +747,7 @@ class Experiment:
                     log.write(msg)
                     return 1
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
                 print(msg)
                 log.write(msg)
 

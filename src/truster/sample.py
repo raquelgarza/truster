@@ -60,7 +60,7 @@ class Sample:
                     # Run locally
                     subprocess.call(cmd)
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
     def velocity(self, TE_gtf, geneGTF, indir):
@@ -93,7 +93,7 @@ class Sample:
                     subprocess.call(cmd)
                     subprocess.call("mv", self.sampleId, indir)
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
     def emptyClusters(self):
@@ -138,7 +138,7 @@ class Sample:
                 else:
                     subprocess.call(cmd)
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
     def registerClustersFromPath(self, path):
@@ -181,7 +181,7 @@ class Sample:
                     subprocess.call(cmd)
                     pass
             except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
 

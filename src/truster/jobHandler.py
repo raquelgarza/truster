@@ -29,17 +29,17 @@ def runJob(function, job_file, code, slurm, modules):
         jobId = (sbatch_out.stdout.split()[len(sbatch_out.stdout.split())-1]).decode("utf-8")
         return jobId
     else:
-        print(Bcolors.FAIL + "Something went wrong. Please try again" + Bcolors.ENDC)
+        print(Bcolors.FAIL + "Something went wrong. Please try again" + Bcolors.ENDC + "\n")
         return
 
 def cancel(jobId):
     scancel_out = subprocess.run([("scancel " + str(jobId))], shell=True, stdout=PIPE, stderr=PIPE)
     time.sleep(3)
     if scancel_out.returncode == 0:
-        print(Bcolors.FAIL + "Job" + str(jobId) + " got cancelled." + Bcolors.ENDC)
+        print(Bcolors.FAIL + "Job" + str(jobId) + " got cancelled." + Bcolors.ENDC + "\n")
         return
     else:
-        print(Bcolors.FAIL + "Something went wrong. Please try again" + Bcolors.ENDC)
+        print(Bcolors.FAIL + "Something went wrong. Please try again" + Bcolors.ENDC + "\n")
         return
 
 def checkStatus(jobId):
@@ -61,7 +61,7 @@ def waitForJob(jobId):
     while onTheWay(jobId):
         time.sleep(3)
     if checkStatus(jobId) == "completed":
-        # print(Bcolors.OKGREEN + "Job " + jobId + " has been completed! :-)" + Bcolors.ENDC)
+        # print(Bcolors.OKGREEN + "Job " + jobId + " has been completed! :-)" + Bcolors.ENDC + "\n")
         return 0
     elif checkStatus(jobId) == "cancelled":
         return 1
@@ -72,16 +72,16 @@ def waitForJob(jobId):
 
 def checkExitCodes(fun, sampleId_clusterName, jobId, exitCode):
     if exitCode == 0:
-        return (Bcolors.OKGREEN + "Job " + jobId + " finished " + fun + " succesfully. " + sampleId_clusterName + Bcolors.ENDC)
+        return (Bcolors.OKGREEN + "Job " + jobId + " finished " + fun + " succesfully. " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 1:
-        return (Bcolors.FAIL + "Job " + jobId + " was cancelled during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC)
+        return (Bcolors.FAIL + "Job " + jobId + " was cancelled during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 2:
-        return (Bcolors.FAIL + "Job " + jobId + " failed during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC)
+        return (Bcolors.FAIL + "Job " + jobId + " failed during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 3:
-        return (Bcolors.FAIL + "Something strange happened to job " + jobId + " during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC)
+        return (Bcolors.FAIL + "Something strange happened to job " + jobId + " during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
 
 def genericError(fun, info):
-    return Bcolors.FAIL + "Something went wrong creating the " + fun + " job for " + info + Bcolors.ENDC
+    return Bcolors.FAIL + "Something went wrong creating the " + fun + " job for " + info + Bcolors.ENDC + "\n"
 
 def sucessSubmit(fun, info, jobId):
-    return Bcolors.OKBLUE + fun.capitalize() + " for " + info + " has been submitted and has job ID " + jobId + Bcolors.ENDC
+    return Bcolors.OKBLUE + fun.capitalize() + " for " + info + " has been submitted and has job ID " + jobId + Bcolors.ENDC + "\n"

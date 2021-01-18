@@ -55,7 +55,10 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
                 outbam = os.path.join(outdir, (self.clusterName + "_filtered.bam"))
-                cmd = ["python", "filterUMIs.py", "-i", inbam, "-o", outbam]
+                
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                
+                cmd = ["python", os.path.join(cwd, "py_scripts/filterUMIs"), "-i", inbam, "-o", outbam]
                 if slurm != None:
                     cmd = ' '.join(cmd)
                     jobFile =  os.path.join("filterUMIs_scripts/", (self.clusterName + "_filterUMIs.sh"))
