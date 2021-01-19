@@ -126,6 +126,7 @@ class Cluster:
     
                 cmd = ["cat", os.path.join(indir, self.clusterName, "*/*_R2_001.fastq.gz"), ">", os.path.join(outdir, (self.clusterName + "_R2.fastq.gz"))]
                 if slurm != None:
+                	cmd = ' '.join(cmd)
                     jobFile =  os.path.join("concatenateLanes_scripts/", (self.clusterName + "_concatenateLanes.sh"))
                     try:
                         jobId = runJob("concatenateLanes", jobFile, cmd, slurm, modules)

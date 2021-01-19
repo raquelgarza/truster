@@ -287,6 +287,7 @@ class Experiment:
             log.write(msg)
 
     def tsvToBamClusters(self, mode, outdir, jobs=1):
+        print("Running tsvToBam with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -309,15 +310,11 @@ class Experiment:
                         for cluster in sample.clusters:
                             bam = os.path.join(self.quantifyOutdir, sampleId, "outs/possorted_genome_bam.bam")
                             outdir_sample = os.path.join(outdir, "tsvToBam/", sampleId)
-                            # args = [sampleId, bam, outdir_sample, self.slurm, self.modules]
-                            # self.tsvToBam_results.append(executor.submit(lambda p: cluster.tsvToBam(*p), args))
-                            exitCode = executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules)
-                            self.tsvToBam_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from tsvToBam.\n"
-                            log.write(msg)
+                            self.tsvToBam_results.append(executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules))
+
                 tsvToBam_exitCodes = [i.result()[1] for i in self.tsvToBam_results]
                 tsvToBam_allSuccess = all(exitCode == 0 for exitCode in tsvToBam_exitCodes)
-
+                
                 if tsvToBam_allSuccess:
                     msg = "\ntsvToBam finished succesfully for all samples!\n"
                     log.write(msg)
@@ -333,6 +330,7 @@ class Experiment:
                 log.write(msg)
 
     def filterUMIsClusters(self, mode, outdir, jobs=1):
+        print("Running filterUMIs with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -354,13 +352,8 @@ class Experiment:
                         for cluster in sample.clusters:
                             inbam = os.path.join(outdir, "tsvToBam/", sampleId, (cluster.clusterName + ".bam"))
                             outdir_sample = os.path.join(outdir, "filterUMIs/", sampleId)
-                            #clusters = self.mergeSamplesClusters[sampleId]
-                            # args = [sampleId, inbam, outdir_sample, self.slurm, self.modules]
-                            # self.filterUMIs_results.append(executor.submit(lambda p: cluster.filterUMIs(*p), args))
-                            exitCode = executor.submit(cluster.filterUMIs, sampleId, inbam, outdir_sample, self.slurm, self.modules)
-                            self.filterUMIs_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from filterUMIs.\n"
-                            log.write(msg)
+                            self.filterUMIs_results.append(executor.submit(cluster.filterUMIs, sampleId, inbam, outdir_sample, self.slurm, self.modules))
+                            
                 filterUMIs_exitCodes = [i.result()[1] for i in self.filterUMIs_results]
                 filterUMIs_allSuccess = all(exitCode == 0 for exitCode in filterUMIs_exitCodes)
                 
@@ -379,6 +372,7 @@ class Experiment:
                 log.write(msg)
  
     def bamToFastqClusters(self, mode, outdir, jobs=1):
+        print("Running bamToFastq with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -400,12 +394,8 @@ class Experiment:
                         for cluster in sample.clusters:
                             bam = os.path.join(outdir, "filterUMIs/", sampleId, (cluster.clusterName + "_filtered.bam"))
                             outdir_sample = os.path.join(outdir, "bamToFastq/", sampleId)
-                            # args = [sampleId, bam, outdir_sample, self.slurm, self.modules]
-                            # self.bamToFastq_results.append(executor.submit(lambda p: cluster.bamToFastq(*p), args))
-                            exitCode = executor.submit(cluster.bamToFastq, sampleId, bam, outdir_sample, self.slurm, self.modules)
-                            self.bamToFastq_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from bamToFastq.\n"
-                            log.write(msg)
+                            self.bamToFastq_results.append(executor.submit(cluster.bamToFastq, sampleId, bam, outdir_sample, self.slurm, self.modules))
+                            
                 bamToFastq_exitCodes = [i.result()[1] for i in self.bamToFastq_results]
                 bamToFastq_allSuccess = all(exitCode == 0 for exitCode in bamToFastq_exitCodes)
 
@@ -423,6 +413,7 @@ class Experiment:
                 log.write(msg)
 
     def concatenateLanesClusters(self, mode, outdir, jobs=1):
+        print("Running concatenateLanes with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -444,12 +435,8 @@ class Experiment:
                         for cluster in sample.clusters:
                             indir = os.path.join(outdir, "bamToFastq/", sampleId)
                             outdir_sample = os.path.join(outdir, "concatenateLanes/", sampleId)
-                            # args = [sampleId, indir, outdir_sample, self.slurm, self.modules]
-                            # self.concatenateLanes_results.append(executor.submit(lambda p: cluster.concatenateLanes(*p), args))
-                            exitCode = executor.submit(cluster.concatenateLanes, sampleId, indir, outdir_sample, self.slurm, self.modules)
-                            self.concatenateLanes_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from concatenateLanes.\n"
-                            log.write(msg)
+                            self.concatenateLanes_results.append(executor.submit(cluster.concatenateLanes, sampleId, indir, outdir_sample, self.slurm, self.modules))
+                            
                 concatenateLanes_exitCodes = [i.result()[1] for i in self.concatenateLanes_results]
                 concatenateLanes_allSuccess = all(exitCode == 0 for exitCode in concatenateLanes_exitCodes)
 
@@ -467,6 +454,7 @@ class Experiment:
                 log.write(msg)
 
     def mapClusters(self, mode, outdir, geneGTF, starIndex, jobs=1):
+        print("Running mapClusters with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -488,12 +476,8 @@ class Experiment:
                         for cluster in sample.clusters:
                             fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
                             outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                            # args = [sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules]
-                            # self.mapCluster_results.append(executor.submit(lambda p: cluster.mapCluster(*p), args))
-                            exitCode = executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules)
-                            self.mapCluster_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from mapCluster.\n"
-                            log.write(msg)
+                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules))
+                            
                 mapCluster_exitCodes = [i.result()[1] for i in self.mapCluster_results]
                 mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
 
@@ -511,6 +495,7 @@ class Experiment:
                 log.write(msg)
         
     def TEcountsClusters(self, mode, outdir, geneGTF, teGTF, jobs=1):
+        print("Running TEcounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
                 if mode == "merged":
@@ -532,12 +517,8 @@ class Experiment:
                         for cluster in sample.clusters:
                             bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
                             outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
-                            # args = [self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules]
-                            # self.TEcounts_results.append(executor.submit(lambda p: cluster.TEcount(*p), args))
-                            exitCode = executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules)
-                            self.TEcounts_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from TEcount.\n"
-                            log.write(msg)
+                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
+                            
                 TEcounts_exitCodes = [i.result()[1] for i in self.TEcounts_results]
                 TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
 
@@ -555,6 +536,7 @@ class Experiment:
                 log.write(msg)
 
     def normalizeTECountsCluster(self, mode, jobs=1):
+        print("Running normalizeTECounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
@@ -607,12 +589,7 @@ class Experiment:
                         for sample in list(self.samples.values()):
                             sampleIndir = os.path.join(indir, sample.sampleId)
                             sampleOutdir = os.path.join(outdir, sample.sampleId)
-                            # args = [sampleIndir, sampleOutdir]
-                            # self.normalized_results.append(executor.submit(lambda p: sample.normalizeTEcounts(*p), args))
-                            exitCode = executor.submit(sample.normalizeTEcounts, sampleIndir, sampleOutdir)
-                            self.normalized_results.append(exitCode)
-                            msg = cluster.clusterName + " return " + str(exitCode.result()[1]) + " from TE count normalization.\n"
-                            log.write(msg)
+                            self.normalized_results.append(executor.submit(sample.normalizeTEcounts, sampleIndir, sampleOutdir))
                             sample.NormalizedOutdir = outdir
                     normalized_exitCodes = [i.result()[1] for i in self.normalized_results]
                     normalized_allSuccess = all(exitCode == 0 for exitCode in normalized_exitCodes)
@@ -630,7 +607,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, jobs=1):
+    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMapCluster = False, finishedTEcounts = False):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -646,109 +623,86 @@ class Experiment:
                         log.write(msg)
                         return 2
 
-                current_instruction = "tsvToBam"
-                msg = "Running " + current_instruction
-                log.write(msg)
-                
-                tsvToBam_allSuccess = self.tsvToBamClusters(mode, outdir, jobs)
-                # tsvToBam_allSuccess = True
+                if not finishedTsvToBam:
+                    current_instruction = "tsvToBam"
+                    msg = "Running " + current_instruction
+                    log.write(msg)
+                    # finishedTsvToBam = self.tsvToBamClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    # if not finishedTsvToBam:
+                    #     msg = "Error in tsvToBam"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
 
-                if tsvToBam_allSuccess:
+                if not finishedFilterUMIs:
                     current_instruction = "filterUMIs"
                     msg = "tsvToBam finished! Moving on to " + current_instruction
                     log.write(msg)
-                    filterUMIs_allSuccess = self.filterUMIsClusters(mode, outdir, jobs)
-
-                    if filterUMIs_allSuccess:
-                        current_instruction = "bamToFastq"
-                        msg = "filterUMIs finished! Moving on to " + current_instruction
-                        log.write(msg)
-                        bamToFastq_allSuccess = self.bamToFastqClusters(mode, outdir, jobs)
-        
-                        if bamToFastq_allSuccess:
-                            current_instruction = "concatenateLanes"
-                            msg = "bamToFastq finished! Moving on to " + current_instruction
-                            log.write(msg)
-                            concatenateLanes_allSuccess = self.concatenateLanesClusters(mode, outdir, jobs)
-
-                            # self.concatenateLanes_results = []
-                            # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                            #     for sampleId, sample in samplesDict.items():
-                            #         for cluster in sample.clusters:
-                            #             indir = os.path.join(outdir, "bamToFastq/", sampleId)
-                            #             outdir_sample = os.path.join(outdir, "concatenateLanes/", sampleId)
-                            #             self.concatenateLanes_results.append(executor.submit(cluster.concatenateLanes, sampleId, indir, outdir_sample, self.slurm, self.modules))
-                            # concatenateLanes_exitCodes = [i.result()[1] for i in self.concatenateLanes_results]
-                            # concatenateLanes_allSuccess = all(exitCode == 0 for exitCode in concatenateLanes_exitCodes)
-
-                            if concatenateLanes_allSuccess:
-                                current_instruction = "mapCluster"
-                                msg = "concatenateLanes finished! Moving on to " + current_instruction
-                                log.write(msg)
-                                mapCluster_allSuccess = self.mapClusters(mode, outdir, geneGTF, starIndex, jobs)
-
-                                # self.mapCluster_results = []
-                                # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                                #     for sampleId, sample in samplesDict.items():
-                                #         for cluster in sample.clusters:
-                                #             fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
-                                #             outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                                #             self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules))
-                                # mapCluster_exitCodes = [i.result()[1] for i in self.mapCluster_results]
-                                # mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
-                                if mapCluster_allSuccess:
-                                    current_instruction = "TEcounts"
-                                    msg = "mapCluster finished! Moving on to " + current_instruction
-                                    log.write(msg)
-                                    TEcounts_allSuccess = self.TEcountsClusters(mode, outdir, geneGTF, teGTF, jobs)
-
-                                    # self.TEcounts_results = []
-                                    # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                                    #     for sampleId, sample in samplesDict.items():
-                                    #         for cluster in sample.clusters:
-                                    #             bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
-                                    #             outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
-                                    #             self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
-                                    # TEcounts_exitCodes = [i.result()[1] for i in self.TEcounts_results]
-                                    # TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
-                                    if TEcounts_allSuccess:
-                                        current_instruction = "normalizeTEcounts"
-                                        msg = "TEcounts finished! Moving on to " + current_instruction
-                                        log.write(msg)
-                                        normalizeTEcounts_allSuccess = self.normalizeTECountsCluster(mode, jobs)
-                                    else:
-                                        msg = "Error in normalizeTEcounts"
-                                        print(msg)
-                                        log.write(msg)
-                                        return 1
-                                else:
-                                    msg = "Error in mapCluster"
-                                    print(msg)
-                                    log.write(msg)
-                                    return 1
-                            else:
-                                msg = "Error in concatenateLanes"
-                                print(msg)
-                                log.write(msg)
-                                return 1
-                        else:
-                            msg = "Error in bamToFastq"
-                            print(msg)
-                            log.write(msg)
-                            return 1
-                    else:
-                        msg = "Error in filterUMIs"
-                        print(msg)
-                        log.write(msg)
-                        return 1
-                else:
-                    msg = "Error in tsvToBam"
-                    print(msg)
+                    # finishedFilterUMIs = self.filterUMIsClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    # if not finishedFilterUMIs:
+                    #     msg = "Error in filterUMIs"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+                    
+                if not finishedBamToFastq:
+                    current_instruction = "bamToFastq"
+                    msg = "filterUMIs finished! Moving on to " + current_instruction
                     log.write(msg)
-                    return 1
+                    # finishedBamToFastq = self.bamToFastqClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    # if not finishedBamToFastq:
+                    #     msg = "Error in BamToFastq"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+
+                if not finishedConcatenateLanes:
+                    current_instruction = "concatenateLanes"
+                    msg = "bamToFastq finished! Moving on to " + current_instruction
+                    log.write(msg)
+                    # finishedConcatenateLanes = self.concatenateLanesClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    # if not finishedConcatenateLanes:
+                    #     msg = "Error in ConcatenateLanes"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+
+                if not finishedMapCluster:
+                    current_instruction = "mapCluster"
+                    msg = "concatenateLanes finished! Moving on to " + current_instruction
+                    log.write(msg)
+                    # finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, jobs = jobs)
+                    # if not finishedMapCluster:
+                    #     msg = "Error in MapCluster"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+
+                if not finishedTEcounts:
+                    current_instruction = "TEcounts"
+                    msg = "mapCluster finished! Moving on to " + current_instruction
+                    log.write(msg)
+                    # finishedTEcounts = self.TEcountsClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, teGTF = teGTF, jobs = jobs)
+                    # if not finishedTEcounts:
+                    #     msg = "Error in TEcounts"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+
+                if not finishedNormalizeTEcounts:
+                    current_instruction = "normalizeTEcounts"
+                    msg = "TEcounts finished! Moving on to " + current_instruction
+                    log.write(msg)
+                    # finishedNormalizeTEcounts = self.normalizeTECountsCluster(mode = mode, jobs = jobs)
+                    # if not finishedNormalizeTEcounts:
+                    #     msg = "Error in normalizeTEcounts"
+                    #     print(msg)
+                    #     log.write(msg)
+                    #     return 1
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
                 print(msg)
                 log.write(msg)
 
-        
+            
