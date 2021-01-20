@@ -101,23 +101,16 @@ class Experiment:
                             excludeFile = os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
-                                # args = [sampleIndir, sampleOutdir, excludeFile]
-                                # Iterator for more than one argument
-                                # executor.submit(lambda p: sample.getClusters(*p), args)
                                 executor.submit(sample.getClusters, sampleIndir, sampleOutdir, excludeFile)
                             else:
                                 msg = "Clustering " + sample.sampleId + " using all cells. File " + excludeFile + " not found.\n"
-                                # args = [sampleIndir, sampleOutdir, None]
-                                # executor.submit(lambda p: sample.getClusters(*p), args)
                                 executor.submit(sample.getClusters, sampleIndir, sampleOutdir, None)
-                            self.getClustersExclusiveOutdir = outdir
+                            self.clustersExclusiveOutdir = outdir
                         else:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
-                            # args = [sampleIndir, sampleOutdir, None]
-                            # executor.submit(lambda p: sample.getClusters(*p), args)
                             executor.submit(sample.getClusters, sampleIndir, sampleOutdir, None)
-                            self.getClustersOutdir = outdir
-                            self.getClustersExclusiveOutdir = None
+                            self.clustersOutdir = outdir
+                            self.clustersExclusiveOutdir = None
                         log.write(msg)
                 
             except KeyboardInterrupt:
@@ -136,17 +129,17 @@ class Experiment:
             msg = "The directory for clusters of individual samples is set to: " + clustersOutdir + ".\n"
             log.write(msg)
 
-    def setGetClustersExclusiveOutdir(self, getClustersExclusiveOutdir):
-            with open(self.logfile, "a") as log:
-                self.getClustersExclusiveOutdir = getClustersExclusiveOutdir
-                # Register clusters in each sample 
-                for sample in list(self.samples.values()):
-                    for i in os.listdir(getClustersExclusiveOutdir):
-                        if os.path.isdir(os.path.join(getClustersExclusiveOutdir, i)) and  i == sample.sampleId:
-                            msg = sample.registerClustersFromPath(os.path.join(getClustersExclusiveOutdir, sample.sampleId))
-                            log.write(msg)
-                msg = "The directory for clusters of individual samples is set to: " + getClustersExclusiveOutdir + ". Which includes selected cells. Samples' clustering is now without the excluded cells.\n"
-                log.write(msg)
+    def setClustersExclusiveOutdir(self, clustersExclusiveOutdir):
+        with open(self.logfile, "a") as log:
+            self.clustersExclusiveOutdir = clustersExclusiveOutdir
+            # Register clusters in each sample 
+            for sample in list(self.samples.values()):
+                for i in os.listdir(clustersExclusiveOutdir):
+                    if os.path.isdir(os.path.join(clustersExclusiveOutdir, i)) and  i == sample.sampleId:
+                        msg = sample.registerClustersFromPath(os.path.join(clustersExclusiveOutdir, sample.sampleId))
+                        log.write(msg)
+            msg = "The directory for clusters of individual samples is set to: " + clustersExclusiveOutdir + ". Which includes selected cells. Samples' clustering is now without the excluded cells.\n"
+            log.write(msg)
 
     def velocityAllSamples(self, TE_gtf, geneGTF, jobs=1):
         try:
@@ -169,10 +162,10 @@ class Experiment:
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         with open(self.logfile, "a") as log:
-            if self.getClustersExclusiveOutdir != None:
-                samplesSeuratRdata = [os.path.join(self.getClustersExclusiveOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
+            if self.clustersExclusiveOutdir != None:
+                samplesSeuratRdata = [os.path.join(self.clustersExclusiveOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
             else:
-                samplesSeuratRdata = [os.path.join(self.getClustersOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
+                samplesSeuratRdata = [os.path.join(self.clustersOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
             
             # Sample ids
             samplesIds = [sample.sampleId for sample in list(self.samples.values())]
@@ -453,7 +446,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def mapClusters(self, mode, outdir, geneGTF, starIndex, jobs=1):
+    def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, jobs=1):
         print("Running mapClusters with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
@@ -476,7 +469,7 @@ class Experiment:
                         for cluster in sample.clusters:
                             fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
                             outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, self.slurm, self.modules))
+                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, self.slurm, self.modules))
                             
                 mapCluster_exitCodes = [i.result()[1] for i in self.mapCluster_results]
                 mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
@@ -522,7 +515,7 @@ class Experiment:
                 TEcounts_exitCodes = [i.result()[1] for i in self.TEcounts_results]
                 TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
 
-                if TEcountsCluster_allSuccess:
+                if TEcounts_allSuccess:
                     msg = "\nTEcounts finished succesfully for all samples!\n"
                     log.write(msg)
                     return True
@@ -535,18 +528,19 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalizeTECountsCluster(self, mode, jobs=1):
+    def normalizeTECountsCluster(self, mode, outdir, jobs=1):
         print("Running normalizeTECounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
             try:
+                indir = os.path.join(outdir, "TEcounts")
+                outdir = os.path.join(outdir, "TEcountsNormalized")
+                self.NormalizedOutdir = outdir
+                
                 if mode == "merged":
-                    rdata = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
-                    indir = os.path.join(self.mergeSamplesOutdir, "clusterPipeline/TEcounts")
-                    outdir = os.path.join(self.mergeSamplesOutdir, "clusterPipeline/TEcountsNormalized")
-                    self.NormalizedOutdir = outdir
-                     
+                    rdata = os.path.join(outdir, (self.name + ".RData"))
+
                     if not os.path.exists("mergedSamplesNorm_scripts"):
                         os.makedirs("mergeSamplesNorm_scripts", exist_ok=True)
                     if not os.path.exists(outdir):
@@ -570,7 +564,6 @@ class Experiment:
                         msg = checkExitCodes("mergeSamplesNorm", ("Experiment " + self.name), jobId, exitCode)
                         print(msg)
                         log.write(msg)
-
                     else:
                         subprocess.call(cmd)
                     self.mergeNormalizedTEcountsOutdir = outdir
@@ -607,7 +600,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMapCluster = False, finishedTEcounts = False):
+    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -627,78 +620,78 @@ class Experiment:
                     current_instruction = "tsvToBam"
                     msg = "Running " + current_instruction
                     log.write(msg)
-                    # finishedTsvToBam = self.tsvToBamClusters(mode = mode, outdir = outdir, jobs = jobs)
-                    # if not finishedTsvToBam:
-                    #     msg = "Error in tsvToBam"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedTsvToBam = self.tsvToBamClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    if not finishedTsvToBam:
+                        msg = "Error in tsvToBam"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
                 if not finishedFilterUMIs:
                     current_instruction = "filterUMIs"
                     msg = "tsvToBam finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedFilterUMIs = self.filterUMIsClusters(mode = mode, outdir = outdir, jobs = jobs)
-                    # if not finishedFilterUMIs:
-                    #     msg = "Error in filterUMIs"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedFilterUMIs = self.filterUMIsClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    if not finishedFilterUMIs:
+                        msg = "Error in filterUMIs"
+                        print(msg)
+                        log.write(msg)
+                        return 1
                     
                 if not finishedBamToFastq:
                     current_instruction = "bamToFastq"
                     msg = "filterUMIs finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedBamToFastq = self.bamToFastqClusters(mode = mode, outdir = outdir, jobs = jobs)
-                    # if not finishedBamToFastq:
-                    #     msg = "Error in BamToFastq"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedBamToFastq = self.bamToFastqClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    if not finishedBamToFastq:
+                        msg = "Error in BamToFastq"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
                 if not finishedConcatenateLanes:
                     current_instruction = "concatenateLanes"
                     msg = "bamToFastq finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedConcatenateLanes = self.concatenateLanesClusters(mode = mode, outdir = outdir, jobs = jobs)
-                    # if not finishedConcatenateLanes:
-                    #     msg = "Error in ConcatenateLanes"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedConcatenateLanes = self.concatenateLanesClusters(mode = mode, outdir = outdir, jobs = jobs)
+                    if not finishedConcatenateLanes:
+                        msg = "Error in ConcatenateLanes"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
                 if not finishedMapCluster:
                     current_instruction = "mapCluster"
                     msg = "concatenateLanes finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, jobs = jobs)
-                    # if not finishedMapCluster:
-                    #     msg = "Error in MapCluster"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, jobs = jobs)
+                    if not finishedMapCluster:
+                        msg = "Error in MapCluster"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
                 if not finishedTEcounts:
                     current_instruction = "TEcounts"
                     msg = "mapCluster finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedTEcounts = self.TEcountsClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, teGTF = teGTF, jobs = jobs)
-                    # if not finishedTEcounts:
-                    #     msg = "Error in TEcounts"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedTEcounts = self.TEcountsClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, teGTF = teGTF, jobs = jobs)
+                    if not finishedTEcounts:
+                        msg = "Error in TEcounts"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
                 if not finishedNormalizeTEcounts:
                     current_instruction = "normalizeTEcounts"
                     msg = "TEcounts finished! Moving on to " + current_instruction
                     log.write(msg)
-                    # finishedNormalizeTEcounts = self.normalizeTECountsCluster(mode = mode, jobs = jobs)
-                    # if not finishedNormalizeTEcounts:
-                    #     msg = "Error in normalizeTEcounts"
-                    #     print(msg)
-                    #     log.write(msg)
-                    #     return 1
+                    finishedNormalizeTEcounts = self.normalizeTECountsCluster(mode = mode, outdir = outdir, jobs = jobs)
+                    if not finishedNormalizeTEcounts:
+                        msg = "Error in normalizeTEcounts"
+                        print(msg)
+                        log.write(msg)
+                        return 1
 
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"

@@ -126,7 +126,7 @@ class Cluster:
     
                 cmd = ["cat", os.path.join(indir, self.clusterName, "*/*_R2_001.fastq.gz"), ">", os.path.join(outdir, (self.clusterName + "_R2.fastq.gz"))]
                 if slurm != None:
-                	cmd = ' '.join(cmd)
+                    cmd = ' '.join(cmd)
                     jobFile =  os.path.join("concatenateLanes_scripts/", (self.clusterName + "_concatenateLanes.sh"))
                     try:
                         jobId = runJob("concatenateLanes", jobFile, cmd, slurm, modules)
@@ -157,7 +157,7 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
-                cmd = ["STAR", "--runThreadN", str(slurm["mapCluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", geneGTF, "--genomeDir", starIndex, "--outFileNamePrefix", (str(os.path.join(outdir, self.clusterName)) + "_") , "--outFilterMultimapNmax", "100", "--limitBAMsortRAM", RAM, "--winAnchorMultimapNmax", "200", "--readFilesIn", os.path.join(fastqdir, (self.clusterName + "_R2.fastq.gz"))]
+                cmd = ["STAR", "--runThreadN", str(slurm["mapCluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(geneGTF), "--genomeDir", str(starIndex), "--outFileNamePrefix", (str(os.path.join(outdir, self.clusterName)) + "_") , "--outFilterMultimapNmax", "100", "--limitBAMsortRAM", str(RAM), "--winAnchorMultimapNmax", "200", "--readFilesIn", os.path.join(fastqdir, (self.clusterName + "_R2.fastq.gz"))]
     
                 if slurm != None:
                     cmd = ' '.join(cmd)
