@@ -528,63 +528,65 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalizeTECountsCluster(self, mode, outdir, jobs=1):
+    def normalizeTECounts(self, mode, outdir, jobs=1):
         print("Running normalizeTECounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
             try:
                 indir = os.path.join(outdir, "TEcounts")
-                outdir = os.path.join(outdir, "TEcountsNormalized")
-                self.NormalizedOutdir = outdir
-                
+                outdirNorm = os.path.join(outdir, "TEcountsNormalized")
+                # self.NormalizedOutdir
                 if mode == "merged":
-                    rdata = os.path.join(outdir, (self.name + ".RData"))
+                    rdata = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
 
                     if not os.path.exists("mergedSamplesNorm_scripts"):
                         os.makedirs("mergeSamplesNorm_scripts", exist_ok=True)
-                    if not os.path.exists(outdir):
-                        os.makedirs(outdir, exist_ok=True)
+                    if not os.path.exists(outdirNorm):
+                        os.makedirs(outdirNorm, exist_ok=True)
                     
                     cwd = os.path.dirname(os.path.realpath(__file__))
-                    cmd = ["Rscript", os.path.join("r_scripts/normalize_TEexpression.R"), "-m", mode, "-o", outdir, "-i", indir, "-r", rdata]
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", mode, "-o", outdirNorm, "-i", indir, "-r", rdata]
 
                     if self.slurmPath != None:
                         cmd = ' '.join(cmd)
                         
                         jobFile =  "mergeSamplesNorm_scripts/" + self.name + "_mergeSamplesNorm.sh"
+                        jobId = runJob("normalizeTEcounts", jobFile, cmd, self.slurm, self.modules)
                         
-                        jobId = runJob("mergeSamplesNorm", jobFile, cmd, self.slurm, self.modules)
-                        
-                        msg = sucessSubmit("mergeSamplesNorm", self.name, jobId)
+                        msg = sucessSubmit("normalizeTEcounts", self.name, jobId)
                         print(msg)
                         log.write(msg)
                         
                         exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("mergeSamplesNorm", ("Experiment " + self.name), jobId, exitCode)
+
+                        msg = checkExitCodes("normalizeTEcounts", ("Experiment " + self.name), jobId, exitCode)
                         print(msg)
                         log.write(msg)
+
+                        if exitCode == 0:
+                            exitCode = True
                     else:
                         subprocess.call(cmd)
-                    self.mergeNormalizedTEcountsOutdir = outdir
+                    self.mergeNormalizedOutdir = outdirNorm
 
                     if exitCode:
                         msg = "\nTE normalization finished succesfully!\n"
                         log.write(msg)
-                        return True
+                        return exitCode
                     else:
                         msg = "\nTE normalization did not finished succesfully.\n"
                         log.write(msg)
-                        return False
+                        return exitCode
                 else:
                     self.normalized_results = []
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                         for sample in list(self.samples.values()):
                             sampleIndir = os.path.join(indir, sample.sampleId)
-                            sampleOutdir = os.path.join(outdir, sample.sampleId)
+                            sampleOutdir = os.path.join(outdirNorm, sample.sampleId)
                             self.normalized_results.append(executor.submit(sample.normalizeTEcounts, sampleIndir, sampleOutdir))
-                            sample.NormalizedOutdir = outdir
-                    normalized_exitCodes = [i.result()[1] for i in self.normalized_results]
+                            sample.NormalizedOutdir = sampleOutdir
+                    normalized_exitCodes = [i.result() for i in self.normalized_results]
                     normalized_allSuccess = all(exitCode == 0 for exitCode in normalized_exitCodes)
 
                     if normalized_allSuccess:
@@ -595,6 +597,101 @@ class Experiment:
                         msg = "\nTE normalization did not finished succesfully for all samples.\n"
                         log.write(msg)
                         return False
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                print(msg)
+                log.write(msg)
+
+    # plotTEexpression -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas 
+    # -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE 
+    # -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized 
+    # -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
+    def plotTEexpression(self, mode, TEsubfamilies, outdir):
+        with open(self.logfile, "a") as log:
+            msg = "Normalizing TE counts.\n"
+            log.write(msg)
+            try:
+                indir = os.path.join(outdir, "TEcountsNormalized")
+                outdirPlots = os.path.join(outdir, "TEplots")
+                cwd = os.path.dirname(os.path.realpath(__file__))
+
+                if not os.path.exists("plotTEexpression_scripts"):
+                    os.makedirs("plotTEexpression_scripts", exist_ok=True)
+                if not os.path.exists(outdirPlots):
+                    os.makedirs(outdirPlots, exist_ok=True)
+
+                if mode == "merged":
+                    RDatas = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
+                    mergedInput = os.path.join(indir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
+                    
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots]
+
+                    if self.slurmPath != None:
+                        cmd = ' '.join(cmd)
+                        
+                        jobFile =  "plotTEexpression_scripts/" + self.name + "_plotTEexpression.sh"
+                        jobId = runJob("plotTEexpression", jobFile, cmd, self.slurm, self.modules)
+                        
+                        msg = sucessSubmit("plotTEexpression", self.name, jobId)
+                        print(msg)
+                        log.write(msg)
+                        
+                        exitCode = waitForJob(jobId)
+
+                        msg = checkExitCodes("plotTEexpression", ("Experiment " + self.name), jobId, exitCode)
+                        print(msg)
+                        log.write(msg)
+
+                        if exitCode == 0:
+                            exitCode = True
+                    else:
+                        subprocess.call(cmd)
+
+                    if exitCode:
+                        msg = "\nTE plot finished succesfully!\n"
+                        log.write(msg)
+                        return exitCode
+                    else:
+                        msg = "\nTE plot did not finished succesfully.\n"
+                        log.write(msg)
+                        return exitCode
+                else:
+                    sampleInputs = ','.join([os.path.join(indir, sample.sampleId, "TE_normalizedValues_aggregatedByClusters_melted.csv") for sample in list(self.samples.values())])
+                    sampleRDatas = ','.join([sample.rdataPath for sample in list(self.samples.values())])
+                    sampleNames = ','.join([sample.sampleId for sample in list(self.samples.values())])
+                    modes = ','.join(["perSample" * len(list(self.samples.values()))])
+
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", sampleRDatas, "-t", TEsubfamilies, "-m", modes, "-n", sampleNames, "-i", sampleInputs, "-o", outdirPlots]
+
+                    if self.slurmPath != None:
+                        cmd = ' '.join(cmd)
+                        
+                        jobFile =  "plotTEexpression_scripts/perSamples_" + self.name + "_plotTEexpression.sh"
+                        jobId = runJob("plotTEexpression", jobFile, cmd, self.slurm, self.modules)
+                        
+                        msg = sucessSubmit("plotTEexpression", self.name, jobId)
+                        print(msg)
+                        log.write(msg)
+                        
+                        exitCode = waitForJob(jobId)
+
+                        msg = checkExitCodes("plotTEexpression", ("Experiment " + self.name), jobId, exitCode)
+                        print(msg)
+                        log.write(msg)
+
+                        if exitCode == 0:
+                            exitCode = True
+                    else:
+                        subprocess.call(cmd)
+
+                    if exitCode:
+                        msg = "\nTE plot finished succesfully!\n"
+                        log.write(msg)
+                        return exitCode
+                    else:
+                        msg = "\nTE plot did not finished succesfully.\n"
+                        log.write(msg)
+                        return exitCode
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 print(msg)
@@ -686,7 +783,7 @@ class Experiment:
                     current_instruction = "normalizeTEcounts"
                     msg = "TEcounts finished! Moving on to " + current_instruction
                     log.write(msg)
-                    finishedNormalizeTEcounts = self.normalizeTECountsCluster(mode = mode, outdir = outdir, jobs = jobs)
+                    finishedNormalizeTEcounts = self.normalizeTECounts(mode = mode, outdir = outdir, jobs = jobs)
                     if not finishedNormalizeTEcounts:
                         msg = "Error in normalizeTEcounts"
                         print(msg)

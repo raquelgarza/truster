@@ -21,7 +21,7 @@ set.seed(10)
 # outdir <- "/Volumes/LaCie/FetalCortex/3_mergeSamples/clusterPipeline/TEcountsNormalized/"
 # names <- c("FetalCortex","Glioma","TBI")
 # modes <- c("merged","merged","merged")
- 
+# plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
   make_option(c("-r", "--RDatas"), type="character", default=NULL,
               help="Path to RDatas with Seurat objects (comma-delimited list)", metavar="character"),

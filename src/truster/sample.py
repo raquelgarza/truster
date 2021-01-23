@@ -151,7 +151,7 @@ class Sample:
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("normalizeTEcounts_scripts"):
-                    os.makedirs("normalizeTEcounts_script", exist_ok=True)
+                    os.makedirs("normalizeTEcounts_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
@@ -159,7 +159,6 @@ class Sample:
                 cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdataPath]
                 if self.slurm != None:
                     cmd = ' '.join(cmd)
-    
                     jobFile =  os.path.join("normalizeTEcounts_scripts/", (self.sampleId + "_normalizeTEcounts.sh"))
                     try:
                         jobId = runJob("normalizeTEcounts", jobFile, cmd, self.slurm, self.modules)

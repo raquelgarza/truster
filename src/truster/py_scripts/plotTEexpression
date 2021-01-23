@@ -1,0 +1,43 @@
+#!/usr/bin/python
+import truster
+import sys
+import getopt
+import os
+import subprocess
+# plotTEexpression -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
+def main(argv):
+   RDatas = ''
+   teSubfamily = ''
+   modes = ''
+   nameRDatas = ''
+   inputs = ''
+   outdir = ''
+   try:
+      opts, args = getopt.getopt(argv,"hr:t:m:n:i:o:",["RDatas=","teSubfamily=","modes=","nameRDatas=","inputs=","outdir="])
+   except getopt.GetoptError:
+      print('plotTEexpression -r <RDatas> -t <teSubfamily> -m <modes> -n <nameRDatas> -i <inputs> -o <outdir>')
+      sys.exit(2)
+   for opt, arg in opts:
+      if opt == '-h':
+         print('plotTEexpression -r <RDatas> -t <teSubfamily> -m <modes> -n <nameRDatas> -i <inputs> -o <outdir>')
+         sys.exit()
+      elif opt in ("-r", "--RDatas"):
+         RDatas = arg
+      elif opt in ("-t", "--teSubfamily"):
+         teSubfamily = arg
+      elif opt in ("-m", "--modes"):
+         modes = arg
+      elif opt in ("-n", "--nameRDatas"):
+         nameRDatas = arg
+      elif opt in ("-i", "--inputs"):
+         inputs = arg
+      elif opt in ("-o", "--outdir"):
+         outdir = arg
+
+   wd = os.path.dirname(os.path.realpath(truster.__file__))
+   cmd = [os.path.abspath(os.path.join(wd, 'r_scripts/plot_TEexpression.R')), "-r", RDatas, "-t", teSubfamily, "-m", modes, "-n", nameRDatas, "-i", inputs, "-o", outdir]
+   subprocess.call(cmd)
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
+
