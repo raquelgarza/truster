@@ -9,7 +9,7 @@ setuptools.setup(
 	packages = setuptools.find_packages("src"),
 	package_dir = {'truster' : 'src/truster'},
 	package_data={'truster' : ['r_scripts/*.r', 'r_scripts/*.R']},
-	scripts = ["src/truster/py_scripts/filterUMIs", "src/truster/py_scripts/plotTEexpression"],
+	scripts = ["src/truster/py_scripts/filterUMIs"],
     include_package_data=True,
 	author = "Raquel Garza",
 	author_email = "raquelgarza95@gmail.com",

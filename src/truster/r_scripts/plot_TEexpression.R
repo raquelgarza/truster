@@ -15,12 +15,12 @@ set.seed(10)
 # Path of TEcounts melted csv file (output from normalize_TEexpression.R)
 # Mode. Merged samples or individual? (merged/individual)
 
-# rdatas <- c("/Volumes/LaCie/FetalCortex/3_mergeSamples/fetalcortex.RData","/Volumes/LaCie/Gliomas/01.01.21/3_mergeSamples/gliomas.RData", "/Volumes/LaCie/TBI/3_mergeSamples/tbi.RData")
+# rdatas <- c("/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/gliomas.RData")
 # tes_ids <- c("L1HS:L1:LINE","L1PA2:L1:LINE","L1PA3:L1:LINE","L1PA4:L1:LINE")
-# inputs <- c("/Volumes/LaCie/FetalCortex/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv", "/Volumes/LaCie/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv", "/Volumes/LaCie/TBI/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv")
-# outdir <- "/Volumes/LaCie/FetalCortex/3_mergeSamples/clusterPipeline/TEcountsNormalized/"
-# names <- c("FetalCortex","Glioma","TBI")
-# modes <- c("merged","merged","merged")
+# inputs <- c('/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
+# outdir <- "/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEplots/"
+# names <- c("gliomas")
+# modes <- c("merged")
 # plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
   make_option(c("-r", "--RDatas"), type="character", default=NULL,
@@ -31,6 +31,8 @@ option_list = list(
               help="Name for experiments/samples Seurat objects (comma-delimited list). In the same order of the --RDatas paths.", metavar="character"),
   make_option(c("-t", "--teSubfamily"), type="character", default=NULL,
               help="Name of a TE subfamily or comma-delimited list", metavar="character"),
+  make_option(c("-c", "--colourBy"), type="character", default=NULL,
+              help="Colour by cluster? (cluster/sample and cluster)", metavar="character"),
   make_option(c("-i", "--inputs"), type="character", default=NULL,
               help="Path of TEcounts melted csv files (*melted.csv output from normalize_TEexpression.R). In the same order of the --RDatas paths.", metavar="character"),
   make_option(c("-o", "--outdir"), type="character", default=NULL,
@@ -40,18 +42,18 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
-if (is.null(opt$modes) | is.null(opt$RDatas) | is.null(opt$nameRDatas) | is.null(opt$teSubfamily) | is.null(opt$inputs) | is.null(opt$outdir)){
+if (is.null(opt$modes) | is.null(opt$colourBy) | is.null(opt$RDatas) | is.null(opt$nameRDatas) | is.null(opt$teSubfamily) | is.null(opt$inputs) | is.null(opt$outdir)){
   print_help(opt_parser)
   stop("All argument must be supplied.", call.=FALSE)
 }
 
 modes <- trimws(unlist(str_split(opt$modes, ',')))
+colourBy <- trimws(opt$colourBy)
 rdatas <- trimws(unlist(str_split(opt$RDatas, ',')))
 names <- trimws(unlist(str_split(opt$nameRDatas, ',')))
 tes_ids <- trimws(unlist(str_split(opt$teSubfamily, ',')))
 inputs <- trimws(unlist(str_split(opt$inputs, ',')))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))
-
 
 print(c("Mode: ", modes))
 print(c("RData to be used: ", rdatas))
@@ -122,6 +124,7 @@ for(i in 1:length(tes_ids)){
   print("################################")
   print(te_i)
   print("################################")
+  
   for(j in 1:length(names(seurat.objs))){
     name <- names(seurat.objs)[j]
     seurat.obj <- seurat.objs[[name]]
@@ -129,11 +132,17 @@ for(i in 1:length(tes_ids)){
     # print(te_id)
     te_i_name <- te_i[which(te_i$condition == name & te_i$te_id == te_id),]
     te_i_name <- te_i_name[order(as.numeric(as.character(te_i_name$cluster))),]
-    # print(paste("clusters ", unique(te_i_name$condition)))
-    # print(unique(te_i_name$cluster))
-    # print(paste("length of colours ", length(te_i_name$colour)))
-    # print(te_i_name$colour)
-    plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) 
+    
+    if(colourBy == 'cluster'){
+      te_i_name <- aggregate(te_i_name$value, by=list(te_i_name$cluster, te_i_name$te_id, te_i_name$condition), FUN=sum)
+      # te_i_name$x <- te_i_name$x / length(unique(seurat.obj$orig.ident))
+      te_i_name$colour <- map2color(te_i_name$x, pal=mypal)
+      colnames(te_i_name) <- c('cluster', 'te_id', 'condition', 'value', 'colour')
+    }else{
+      Idents(seurat.obj) <- paste(seurat.obj$orig.ident, seurat.obj$seurat_clusters, sep='.cluster_')        
+    }
+    
+    plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) + theme(legend.position = "none")
   }
   
   title <- paste(te_subfam, paste(names(seurat.objs), collapse = '.'), sep = "_")

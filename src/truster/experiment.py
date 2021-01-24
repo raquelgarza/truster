@@ -606,7 +606,7 @@ class Experiment:
     # -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE 
     # -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized 
     # -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
-    def plotTEexpression(self, mode, TEsubfamilies, outdir):
+    def plotTEexpression(self, mode, TEsubfamilies, outdir, colourBy = "sample.cluster"):
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
@@ -624,7 +624,7 @@ class Experiment:
                     RDatas = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
                     mergedInput = os.path.join(indir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
                     
-                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots]
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots, "-c", colourBy]
 
                     if self.slurmPath != None:
                         cmd = ' '.join(cmd)
@@ -656,12 +656,12 @@ class Experiment:
                         log.write(msg)
                         return exitCode
                 else:
-                    sampleInputs = ','.join([os.path.join(indir, sample.sampleId, "TE_normalizedValues_aggregatedByClusters_melted.csv") for sample in list(self.samples.values())])
+                    sampleInputs = ','.join([os.path.join(indir, sample.sampleId, "TE_normalizedValues_melted.csv") for sample in list(self.samples.values())])
                     sampleRDatas = ','.join([sample.rdataPath for sample in list(self.samples.values())])
                     sampleNames = ','.join([sample.sampleId for sample in list(self.samples.values())])
-                    modes = ','.join(["perSample" * len(list(self.samples.values()))])
+                    modes = ','.join(["perSample" for i in list(self.samples.values())])
 
-                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", sampleRDatas, "-t", TEsubfamilies, "-m", modes, "-n", sampleNames, "-i", sampleInputs, "-o", outdirPlots]
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", sampleRDatas, "-t", TEsubfamilies, "-m", modes, "-n", sampleNames, "-i", sampleInputs, "-o", outdirPlots, "-c", colourBy]
 
                     if self.slurmPath != None:
                         cmd = ' '.join(cmd)
