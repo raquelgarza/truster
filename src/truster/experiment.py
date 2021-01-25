@@ -141,14 +141,14 @@ class Experiment:
             msg = "The directory for clusters of individual samples is set to: " + clustersExclusiveOutdir + ". Which includes selected cells. Samples' clustering is now without the excluded cells.\n"
             log.write(msg)
 
-    def velocityAllSamples(self, TE_gtf, geneGTF, jobs=1):
+    def velocityAllSamples(self, teGTF, geneGTF, jobs=1):
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
                     sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
-                    # args = [TE_gtf, geneGTF, sampleIndir]
+                    # args = [teGTF, geneGTF, sampleIndir]
                     # executor.submit(lambda p: sample.velocity(*p), args)
-                    executor.submit(sample.velocity, TE_gtf, geneGTF, sampleIndir)
+                    executor.submit(sample.velocity, teGTF, geneGTF, sampleIndir)
                 executor.shutdown(wait=True)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + "\n"
@@ -446,31 +446,127 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
+    def mergeClusters(self, outdir):
+        with open(self.logfile, "a") as log:
+            try:
+                outdirMergedClusters = os.path.join(outdir, "mergedClusters")
+                if not os.path.exists(outdirMergedClusters):
+                    os.makedirs(outdirMergedClusters, exist_ok=True)
+
+                mergeSamplesListsClusters = [samplesClusters.clusters for samplesClusters in self.mergeSamples.values()]
+                mergeSamplesClusters = [cluster.clusterName.split("merged.clusters_")[1] for mergeSamplesListClusters in mergeSamplesListsClusters for cluster in mergeSamplesListClusters]
+                
+                tsvs = { key : set() for key in mergeSamplesClusters }
+                for samplesClusters in self.mergeSamples.values():
+                    for cluster in samplesClusters.clusters:
+                        clusterNum = cluster.clusterName.split("merged.clusters_")[1]
+                        tsvs[clusterNum].add(cluster.tsv)
+
+                mergeClusters = dict.fromkeys(tsvs.keys())
+                for clusterNum, tsv in tsvs.items():
+                    mergeClusters[clusterNum] = Cluster(clusterName = ("mergedCluster_" + str(clusterNum)), tsv = list(tsvs[clusterNum]), logfile = self.logfile)
+                
+                self.mergedClusters_results = []
+                # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                for clusterNum in mergeClusters.keys():
+                    outdirConcatenateLanes = os.path.join(outdir, "concatenateLanes")
+                    outfile = os.path.join(outdirMergedClusters, ("mergedCluster_" + str(clusterNum) + "_R2.fastq.gz"))
+                    
+                    clusterFastqs = []
+                    for dirpath, subdirs, files in os.walk(outdirConcatenateLanes):
+                        for file in files:
+                            if file.split("_merged.clusters_")[1].split("_R2.fastq.gz")[0] == clusterNum:
+                                clusterFastqs.append(os.path.join(dirpath, file))
+
+                    cmd = clusterFastqs
+                    cmd.insert(0, "cat")
+                    log.write("Running " + ' '.join(cmd) + "\n\n\n")
+                    
+                    with open(outfile, "w") as fout:
+                        # subprocess.call("date", shell = False, stdout=log, universal_newlines=True)
+                        # self.mergedClusters_results.append(executor.submit(subprocess.call, cmd, shell = False, stdout=fout))
+                        self.mergedClusters_results.append(subprocess.call(cmd, shell = False, stdout=fout, universal_newlines=True))
+                         
+                self.mergeSamples = mergeClusters
+                self.outdirMergedClusters = outdirMergedClusters
+                log.write("self.mergeSamples is now " + str(mergeClusters) + "\n\n\n")
+                
+                mergedClusters_allSuccess = all(exitCode == 0 for exitCode in self.mergedClusters_results)
+
+                if mergedClusters_allSuccess:
+                    msg = "\nmergedClusters finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
+                else:
+                    msg = "\nmergedClusters did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
+            except KeyboardInterrupt:
+                    msg = Bcolors.HEADER + "User interrupted. Finishing merging clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
+                    print(msg)
+                    log.write(msg)
+
+    def setMergeClusters(self, outdirMergedClusters):
+        with open(self.logfile, "a") as log:
+            try:
+                if not os.path.exists(outdirMergedClusters):
+                    log.write("Directory not found: " + outdirMergedClusters + " does not exist.")
+                    return 2
+
+                mergeSamplesListsClusters = [samplesClusters.clusters for samplesClusters in self.mergeSamples.values()]
+                mergeSamplesClusters = [cluster.clusterName.split("merged.clusters_")[1] for mergeSamplesListClusters in mergeSamplesListsClusters for cluster in mergeSamplesListClusters]
+                
+                tsvs = { key : set() for key in mergeSamplesClusters }
+                for samplesClusters in self.mergeSamples.values():
+                    for cluster in samplesClusters.clusters:
+                        clusterNum = cluster.clusterName.split("merged.clusters_")[1]
+                        tsvs[clusterNum].add(cluster.tsv)
+
+                mergeClusters = dict.fromkeys(tsvs.keys())
+                for clusterNum, tsv in tsvs.items():
+                    mergeClusters[clusterNum] = Cluster(clusterName = ("mergedCluster_" + str(clusterNum)), tsv = list(tsvs[clusterNum]), logfile = self.logfile)
+                
+                self.mergeSamples = mergeClusters
+                self.outdirMergedClusters = outdirMergedClusters
+                log.write("self.mergeSamples is now " + str(mergeClusters) + "\n\n\n")
+                
+            except KeyboardInterrupt:
+                    msg = Bcolors.HEADER + "User interrupted. Finishing merging clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
+                    print(msg)
+                    log.write(msg)
+
     def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, jobs=1):
         print("Running mapClusters with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
+                self.mapCluster_results = []
+                msg = "Mapping clusters.\n"
+                log.write(msg)
+
                 if mode == "merged":
                     samplesDict = self.mergeSamples
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                        for clusterNum, cluster in samplesDict.items():
+                            fastqdir = os.path.join(outdir, "mergedClusters/")
+                            mapOutdir = os.path.join(outdir, "mapCluster/")
+                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, "Merged", fastqdir, mapOutdir, geneGTF, starIndex, RAM, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
                         samplesDict = self.samples
+
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                            for sampleId, sample in samplesDict.items():
+                                for cluster in sample.clusters:
+                                    fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
+                                    outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
+                                    self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, self.slurm, self.modules))
                     else:
                         msg = "Please specify a mode (merged/perSample).\n"
                         print(msg)
                         log.write(msg)
                         return 2
 
-                self.mapCluster_results = []
-                msg = "Mapping clusters.\n"
-                log.write(msg)
-                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                    for sampleId, sample in samplesDict.items():
-                        for cluster in sample.clusters:
-                            fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
-                            outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, self.slurm, self.modules))
-                            
                 mapCluster_exitCodes = [i.result()[1] for i in self.mapCluster_results]
                 mapCluster_allSuccess = all(exitCode == 0 for exitCode in mapCluster_exitCodes)
 
@@ -491,27 +587,35 @@ class Experiment:
         print("Running TEcounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
+                self.TEcounts_results = []
+                msg = "Quantifying TEs.\n"
+                log.write(msg)
+
                 if mode == "merged":
                     samplesDict = self.mergeSamples
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                        for clusterNum, cluster in samplesDict.items():
+                            bam = os.path.join(outdir, "mapCluster/", (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
+                            outdir_sample = os.path.join(outdir, "TEcounts/")
+                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, "Merged", bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
                         samplesDict = self.samples
+
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                            for sampleId, sample in samplesDict.items():
+                                for cluster in sample.clusters:
+                                    bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
+                                    outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
+                                    self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
+                            
                     else:
                         msg = "Please specify a mode (merged/perSample).\n"
                         print(msg)
                         log.write(msg)
                         return 2
-
-                self.TEcounts_results = []
-                msg = "Quantifying TEs.\n"
-                log.write(msg)
-                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                    for sampleId, sample in samplesDict.items():
-                        for cluster in sample.clusters:
-                            bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
-                            outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
-                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
-                            
+               
                 TEcounts_exitCodes = [i.result()[1] for i in self.TEcounts_results]
                 TEcounts_allSuccess = all(exitCode == 0 for exitCode in TEcounts_exitCodes)
 
@@ -697,10 +801,12 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
+    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMergeClusters = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
+            finishedOnTheRunMergeClusters = False
+
             try:
                 if mode == "merged":
                     samplesDict = self.mergeSamples
@@ -757,9 +863,25 @@ class Experiment:
                         log.write(msg)
                         return 1
 
+                if mode == "merged" and not finishedMergeClusters:
+                    current_instruction = "mergeClusters"
+                    msg = "concatenateLanes finished! You selected merged as your mode, so moving on to " + current_instruction
+                    log.write(msg)
+                    finishedMergeClusters = self.mergeClusters(outdir = outdir)
+                    if not finishedMergeClusters:
+                        msg = "Error in mergeClusters"
+                        print(msg)
+                        log.write(msg)
+                        return 1
+                    finishedOnTheRunMergeClusters = True
+
                 if not finishedMapCluster:
+                    if mode == "merged" and not finishedOnTheRunMergeClusters:
+                        self.setMergeClusters(os.path.join(outdir, "mergedClusters"))
+                        finishedOnTheRunMergeClusters = True
+
                     current_instruction = "mapCluster"
-                    msg = "concatenateLanes finished! Moving on to " + current_instruction
+                    msg = "mergeClusters finished! Moving on to " + current_instruction
                     log.write(msg)
                     finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, jobs = jobs)
                     if not finishedMapCluster:
@@ -769,6 +891,10 @@ class Experiment:
                         return 1
 
                 if not finishedTEcounts:
+                    if mode == "merged" and not finishedOnTheRunMergeClusters:
+                        self.setMergeClusters(os.path.join(outdir, "mergedClusters"))
+                        finishedOnTheRunMergeClusters = True
+
                     current_instruction = "TEcounts"
                     msg = "mapCluster finished! Moving on to " + current_instruction
                     log.write(msg)
@@ -780,6 +906,10 @@ class Experiment:
                         return 1
 
                 if not finishedNormalizeTEcounts:
+                    if mode == "merged" and not finishedOnTheRunMergeClusters:
+                        self.setMergeClusters(os.path.join(outdir, "mergedClusters"))
+                        finishedOnTheRunMergeClusters = True
+
                     current_instruction = "normalizeTEcounts"
                     msg = "TEcounts finished! Moving on to " + current_instruction
                     log.write(msg)
