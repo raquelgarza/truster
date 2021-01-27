@@ -96,6 +96,43 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
+    def plotVelocity(self, loom, outdir):
+        with open(self.logfile, "a") as log:
+            try:
+                if not os.path.exists("velocity_scripts/"):
+                    os.makedirs("velocity_scripts", exist_ok=True)
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir, exist_ok=True)
+
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                os.path.join(cwd, "py_scripts/plotVelocity.py")
+                # print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
+                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.sampleId, "-u", os.path.join(outdir, (self.sampleId + "_cell_embeddings.csv")), "-c", os.path.join(outdir, (self.sampleId + "_clusters.csv")), "-o", outdir]
+    
+                if self.slurm != None:
+    
+                    cmd = ' '.join(cmd)
+    
+                    jobFile =  os.path.join("velocity_scripts/", (self.sampleId + "_plotVelocity.sh"))
+                    try:
+                        jobId = runJob("plotVelocity", jobFile, cmd, self.slurm, self.modules)
+                        msg = sucessSubmit("plotVelocity", self.sampleId, jobId)
+                        log.write(msg)
+
+                        exitCode = waitForJob(jobId)
+                        msg = checkExitCodes("plotVelocity", ("Sample " + self.sampleId), jobId, exitCode)
+                        log.write(msg)
+                        
+                    except:
+                        msg = genericError("plotVelocity", self.sampleId)
+                        log.write(msg)
+                        return waitForJob(jobId)
+                else:
+                    subprocess.call(cmd)
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                log.write(msg)
+
     def emptyClusters(self):
         self.clusters = []
         return

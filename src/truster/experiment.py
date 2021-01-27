@@ -155,6 +155,19 @@ class Experiment:
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
+    def plotVelocityAllSamples(self, jobs=1):
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                for sample in list(self.samples.values()):
+                    loom = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", (sample.sampleId + ".loom"))
+                    sampleOutdir = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", "plots")
+                    executor.submit(sample.plotVelocity, loom, sampleOutdir)
+                executor.shutdown(wait=True)
+        except KeyboardInterrupt:
+            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + "\n"
+            with open(self.logfile, "a") as log:
+                log.write(msg)
+
     #def setProcessClustersOutdir(self, processClustersOutdir):
     #    self.processedClustersOutdir = processClustersOutdir
 
@@ -710,7 +723,7 @@ class Experiment:
     # -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE 
     # -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized 
     # -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
-    def plotTEexpression(self, mode, TEsubfamilies, outdir, colourBy = "sample.cluster"):
+    def plotTEexpression(self, mode, TEsubfamilies, outdir):
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
@@ -728,7 +741,7 @@ class Experiment:
                     RDatas = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
                     mergedInput = os.path.join(indir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
                     
-                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots, "-c", colourBy]
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots]
 
                     if self.slurmPath != None:
                         cmd = ' '.join(cmd)

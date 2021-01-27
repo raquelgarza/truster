@@ -1,5 +1,7 @@
 #!/bin/env Rscript
 
+library(pheatmap)
+library(RColorBrewer)
 library(ggplot2)
 library(optparse)
 library(Seurat)
@@ -15,11 +17,11 @@ set.seed(10)
 # Path of TEcounts melted csv file (output from normalize_TEexpression.R)
 # Mode. Merged samples or individual? (merged/individual)
 
-# rdatas <- c("/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/gliomas.RData")
-# tes_ids <- c("L1HS:L1:LINE","L1PA2:L1:LINE","L1PA3:L1:LINE","L1PA4:L1:LINE")
-# inputs <- c('/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
-# outdir <- "/Volumes/My Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEplots/"
-# names <- c("gliomas")
+# rdatas = c('/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/fetalcortex.RData')
+# tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
+# inputs <- c('/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
+# outdir <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/"
+# names <- c("fetalcortex")
 # modes <- c("merged")
 # plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
@@ -89,10 +91,18 @@ for(i in 1:length(rdatas)){
     seurat.objs[[name]] <- sample
   }
 }
+####
 
-colourLimits_outdir <- paste("colourLimits_", paste(sapply(str_split(tes_ids, ":"), `[[`, 1), collapse = '.'), sep='')
+if(file.exists(tes_ids_file)){
+  tes_ids <- as.vector(fread(tes_ids_file, data.table = F, header = F)[,1])
+}else{
+  print(paste("TEs ids file", tes_ids, "not found"))
+  return(2)
+}
 
-outdir <- paste(outdir, "/", colourBy, "/", colourLimits_outdir, '/', sep='')
+write.table(c("colour limits set to fit the expression of the following set of TE subfamilies\n", tes_ids), 
+            file = paste(outdir, "colourLimits.txt", sep = ''), quote = F,
+            col.names = F, row.names = F)
 
 if(!dir.exists(outdir)){
   dir.create(outdir, recursive = T)  
@@ -114,59 +124,49 @@ te <- do.call(rbind, te)
 te$colour <- map2color(te$value, pal=mypal)
 
 plots <- list()
-if(colourBy == 'cluster'){
-  for(j in 1:length(names(seurat.objs))){
-    name <- names(seurat.objs)[j]
-    seurat.obj <- seurat.objs[[name]]
-    te_name <- te[which(te$condition == name),]
+for(j in 1:length(names(seurat.objs))){
+  name <- names(seurat.objs)[j]
+  seurat.obj <- seurat.objs[[name]]
+  te_name <- te[which(te$condition == name),]
+  
+  # te_name <- aggregate(te_name$value, by=list(te_name$cluster, te_name$te_id, te_name$condition), FUN=sum)
+  # te_name$x <- te_name$x / length(unique(seurat.obj$orig.ident))
+  te_name$colour <- map2color(te_name$value, pal=mypal)
+  colnames(te_name) <- c('te_id', 'name', 'cluster', 'value', 'condition', 'colour')
+  
+  for(i in 1:length(tes_ids)){
+    te_id <- tes_ids[i]
+    te_subfam <- sapply(str_split(te_id, ":"), `[[`, 1)
+    print(paste("TE subfamily ", te_subfam))
+    te_i_name <- te_name[which(te_name$te_id == te_id),]
+    te_i_name <- te_i_name[order(as.numeric(as.character(te_i_name$cluster))),]
     
-    te_name <- aggregate(te_name$value, by=list(te_name$cluster, te_name$te_id, te_name$condition), FUN=sum)
-    te_name$x <- te_name$x / length(unique(seurat.obj$orig.ident))
-    te_name$colour <- map2color(te_name$x, pal=mypal)
-    colnames(te_name) <- c('cluster', 'te_id', 'condition', 'value', 'colour')
+    plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) + theme(legend.position = "none") + ggtitle(paste((name), te_subfam, sep = ' '))
     
-    for(i in 1:length(tes_ids)){
-      te_id <- tes_ids[i]
-      te_subfam <- sapply(str_split(te_id, ":"), `[[`, 1)
-      print(paste("TE subfamily ", te_subfam))
-      te_i_name <- te_name[which(te_name$te_id == te_id),]
-      te_i_name <- te_i_name[order(as.numeric(as.character(te_i_name$cluster))),]
-      
-      plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) + theme(legend.position = "none")
-      
-      # title <- paste(te_subfam, paste(name, collapse = '.'), sep = "_")
-    }
-    
-    pdf(paste(outdir, name, "_", paste(sapply(str_split(tes_ids, ":"), `[[`, 1), collapse = '.'), "_umap.pdf", sep=''), onefile = T)
-    print(ggarrange(plotlist=plots[names(plots)[startsWith(names(plots), name)]],
-                    labels = paste(paste(unlist(str_split(names(plots), '_')), collapse=' '), "expression", sep=' ')))
-    dev.off()
   }
-}else{
-    for(j in 1:length(names(seurat.objs))){
-      name <- names(seurat.objs)[j]
-      seurat.obj <- seurat.objs[[name]]
-      te_name <- te[which(te$condition == name),]
-      
-      Idents(seurat.obj) <- paste(seurat.obj$orig.ident, seurat.obj$seurat_clusters, sep='.cluster_')
-      
-      for(i in 1:length(tes_ids)){
-        te_id <- tes_ids[i]
-        te_subfam <- sapply(str_split(te_id, ":"), `[[`, 1)
-        print(paste("TE subfamily ", te_subfam))
-        te_i_name <- te_name[which(te_name$te_id == te_id),]
-        te_i_name <- te_i_name[order(as.numeric(as.character(te_i_name$cluster))),]
-        
-        plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) + theme(legend.position = "none")
-        
-        title <- paste(te_subfam, paste(name, collapse = '.'), sep = "_")
-        
-        pdf(paste(outdir, title, "_umap.pdf", sep=''), onefile = T)
-        for (k in 1:length(plots)) {
-          print(ggarrange(plotlist=plots[paste(name, te_subfam, sep = '_')],
-                          labels = paste(name, te_subfam, "expression")))
-        }
-        dev.off()
-      }
-    }
+  
+  pdf(paste(outdir, name, "_umap.pdf", sep=''), onefile = T)
+  print(plots[names(plots)[startsWith(names(plots), name)]])#,
+                  # labels = paste(paste(unlist(str_split(names(plots), '_')), collapse=' '), "expression", sep=' ')))
+  dev.off()
 }
+
+te <- reshape2::dcast(te[,c("sample_cluster","te_id","value")], te_id~sample_cluster)
+rownames(te) <- te$te_id
+te <- te[,-1]
+te <- te[tes_ids,]
+colannot <- data.frame(name = colnames(te[order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2))),]),
+                       cluster = sapply(str_split(colnames(te[order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2))),]), '_'), `[[`, 2))
+rownames(colannot) <- colannot$name
+colannot <- colannot[,"cluster", drop=F]
+te <- te[,order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2)))]
+
+colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(seurat.obj$seurat_clusters)))
+names(colours) <- as.character(unique(experiment$seurat_clusters))
+
+pdf(paste(outdir, name, "_heatmap.pdf", sep=''), height = 12, width = 6)
+pheatmap(te, cluster_cols = F, cluster_rows = F, annotation_col = colannot, 
+         annotation_colors = list(cluster = colours), labels_row = sapply(str_split(rownames(te), ":"), `[[`, 1),
+         labels_col = sapply(str_split(colnames(te), "_"), `[[`, 2), fontsize = 5)
+dev.off()
+

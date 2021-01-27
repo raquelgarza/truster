@@ -5,6 +5,7 @@ library(Seurat)
 library(stringr)
 library(dplyr)
 library(patchwork)
+library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
@@ -58,6 +59,15 @@ sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 sample <- FindNeighbors(sample, dims = 1:10)
 sample <- FindClusters(sample, resolution = 0.5)
 sample <- RunUMAP(sample, dims = 1:10)
+write.csv(Embeddings(sample, reduction = "umap"), file = paste(outpath, '/', sample_name, "_cell_embeddings.csv", sep=''))
+
+colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(sample$seurat_clusters)))
+names(colours) <- as.character(unique(sample$seurat_clusters))
+sample@meta.data$cellIds <- rownames(sample@meta.data)
+sample_colours <- merge(data.frame(seurat_clusters=unique(sample$seurat_clusters)), data.frame(cluster_colours = colours, seurat_clusters = names(colours)), by='seurat_clusters')
+sample@meta.data <- merge(sample@meta.data, sample_colours, by='seurat_clusters')
+rownames(sample@meta.data) <- sample@meta.data$cellIds
+write.csv(sample@meta.data[,c('seurat_clusters', 'cluster_colours'), drop=F], file = paste(outpath, '/', sample_name, "_clusters.csv", sep=''))
 
 df <- as.data.frame(sample$seurat_clusters)
 colnames(df) <- 'clusters'
@@ -77,5 +87,6 @@ if(!is.null(exclude)){
 }else{
   save(sample, file = paste(outpath, '/', sample_name, ".RData", sep=''))  
 }
+
 
 

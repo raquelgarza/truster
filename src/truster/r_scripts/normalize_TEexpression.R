@@ -14,9 +14,9 @@ set.seed(10)
 # Path to TEcounts folder with output per cluster
 
 # mode = 'merged'
-# outdir = '/Volumes/My\ Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/Seq091_1/'
-# indir = '/Volumes/My\ Passport/Gliomas/01.01.21/3_mergeSamples/clusterPipeline/TEcounts/'
-# rdata = '/Volumes/My\ Passport/Gliomas/01.01.21/3_mergeSamples/gliomas.RData'
+# outdir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
+# indir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcounts/'
+# rdata = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/fetalcortex.RData'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -54,20 +54,9 @@ print(c("Output path: ", outdir))
 load(rdata)
 if(mode == 'merged'){
   seurat.obj <- experiment
-  for(i in 1:length(unique(seurat.obj$orig.ident))){
-    seurat.obj.i <- subset(seurat.obj, subset = orig.ident == unique(seurat.obj$orig.ident)[i])
-    if(i == 1){
-      cluster_sizes <- data.frame(cluster.size=table(seurat.obj.i@active.ident))  
-      colnames(cluster_sizes) <- c('cluster', "cluster.size")
-      cluster_sizes$sample <- unique(seurat.obj$orig.ident)[i]
-    }else{
-      tmp <- data.frame(cluster.size=table(seurat.obj.i@active.ident))  
-      colnames(tmp) <- c('cluster', "cluster.size")
-      tmp$sample <- unique(seurat.obj$orig.ident)[i]
-      cluster_sizes <- rbind(cluster_sizes, tmp)
-    }
-  }
-  cluster_sizes$name <- paste(cluster_sizes$sample, cluster_sizes$cluster, sep=".cluster_")
+  cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
+  colnames(cluster_sizes) <- c('cluster', 'cluster.size')
+  cluster_sizes$name <- paste("mergedCluster_", cluster_sizes$cluster, sep='')
 }else{
   seurat.obj <- sample
   cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
@@ -75,19 +64,21 @@ if(mode == 'merged'){
   cluster_sizes$name <- paste(cluster_sizes$sample, cluster_sizes$cluster, sep=".cluster_")
 }
 
-files <- list.files(indir, recursive = T)
+files <- list.files(indir, recursive = F)
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
-    sample <- unlist(str_split(files[i], '/'))[1]
-    cluster <- unlist(str_split(unlist(str_split(unlist(str_split(files[i], '/'))[2], "clusters_")[1])[2], "_"))[1]
+    cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
+    sample = paste("mergedCluster_", cluster, sep="")
+    name <- paste("mergedCluster_", cluster, sep="")
+    coldata <- rbind(coldata, data.frame(sample=sample, name = name, cluster=cluster))
   }else{
     file_name <- sub("_$", "", sapply(str_split(files[i], '.cntTable'), `[[`, 1))
     sample <- unlist(str_split(file_name, '_clusters'))[1]
     cluster <- unlist(str_split(file_name, 'clusters_'))[2]
+    name <- paste(sample, cluster, sep=".cluster_")
+    coldata <- rbind(coldata, data.frame(sample=sample, name=name, cluster=cluster))
   }
-  coldata <- rbind(coldata, data.frame(sample=sample, cluster=cluster))
-  name <- paste(sample, cluster, sep=".cluster_")
   
   file <- paste(indir, files[i], sep='')
   
@@ -100,32 +91,41 @@ for(i in 1:length(files)){
     TEcounts <- merge(TEcounts, counts, all=T, by="TE")
   }
 }
-rownames(TEcounts) <- TEcounts$TE
 
-coldata$name <- paste(coldata$sample, coldata$cluster, sep=".cluster_")
+rownames(TEcounts) <- TEcounts$TE
+rownames(coldata) <- coldata$name
+
+num_reads <- data.frame(id=names(colSums(TEcounts[,rownames(coldata)])),
+                        value=colSums(TEcounts[,rownames(coldata)]))
+if(mode != "merged"){
+  num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
+  num_reads <- aggregate(num_reads$value, by=list(num_reads$sample_id), FUN=sum)
+}
 
 coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
 
-num_reads <- data.frame(value=colSums(TEcounts[,rownames(coldata)]), 
-                        id=names(colSums(TEcounts[,rownames(coldata)])))
-num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
-num_reads <- aggregate(num_reads$value, by=list(num_reads$sample_id), FUN=sum)
 colnames(num_reads) <- c('sample', 'num_reads')
 rownames(num_reads) <- num_reads$sample
 
 TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENSG'))
 
-coldata <- merge(coldata, num_reads, by='sample')
+coldata <- merge(coldata, num_reads, by='sample')  
 rownames(coldata) <- coldata$name
 te_counts_size <- TEcounts[, rownames(coldata)]
-te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$cluster.size)
-te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$num_reads)
-te_counts_size <- te_counts_size[, rownames(coldata)] * 1e+10
+# te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$cluster.size)
+# te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$num_reads)
+# te_counts_size <- te_counts_size[, rownames(coldata)] * 1e+10
 
 te_counts_size$te_id <- rownames(te_counts_size)
 te_counts_size_melt <- reshape2::melt(te_counts_size, by=list(c('te_id')))
-te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
+
+if(mode == "merged"){
+  te_counts_size_melt$cluster <- gsub("mergedCluster_", "", te_counts_size_melt$variable)
+}else{
+  te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
+}
+
 
 te_counts_size <- te_counts_size[,c(colnames(te_counts_size)[ncol(te_counts_size)], colnames(te_counts_size)[-ncol(te_counts_size)])]
 fwrite(te_counts_size, paste(outdir, 'TE_normalizedValues_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
@@ -138,3 +138,6 @@ if(mode == 'merged'){
 }else{
   fwrite(te_counts_size_melt, paste(outdir, 'TE_normalizedValues_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 }
+
+
+
