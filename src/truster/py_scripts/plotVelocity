@@ -42,55 +42,55 @@ def main(argv):
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
-sample = anndata.read_loom(loom_file)
-sample_umap = pd.read_csv(umap_file)
-cell_clusters = pd.read_csv(clusters_file)
-cell_clusters["seurat_clusters"] = [str(i) for i in cell_clusters["seurat_clusters"]]
+    sample = anndata.read_loom(loom_file)
+    sample_umap = pd.read_csv(umap_file)
+    cell_clusters = pd.read_csv(clusters_file)
+    cell_clusters["seurat_clusters"] = [str(i) for i in cell_clusters["seurat_clusters"]]
 
-sample_index = pd.DataFrame(sample.obs.index)
-sample_index = sample_index.rename(columns = {0:'Cell ID'})
+    sample_index = pd.DataFrame(sample.obs.index)
+    sample_index = sample_index.rename(columns = {0:'Cell ID'})
 
-sample_umap = sample_umap.rename(columns = {'Unnamed: 0':'Cell ID'})
-cell_clusters = cell_clusters.rename(columns={'Unnamed: 0': 'Cell ID'})
+    sample_umap = sample_umap.rename(columns = {'Unnamed: 0':'Cell ID'})
+    cell_clusters = cell_clusters.rename(columns={'Unnamed: 0': 'Cell ID'})
 
-cell_clusters['Cell ID'] = [
-        '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-        for cluster, cell in zip([sample_name] * cell_clusters.shape[0], cell_clusters['Cell ID'].tolist())
-    ]
+    cell_clusters['Cell ID'] = [
+            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
+            for cluster, cell in zip([sample_name] * cell_clusters.shape[0], cell_clusters['Cell ID'].tolist())
+        ]
 
-sample_umap['Cell ID'] = [
-        '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-        for cluster, cell in zip([sample_name] * sample_umap.shape[0], sample_umap['Cell ID'].tolist())
-    ]
-keep_cell = [cell in sample_umap['Cell ID'].tolist() for cell in sample_index['Cell ID'].tolist()]
-sample = sample[keep_cell]
+    sample_umap['Cell ID'] = [
+            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
+            for cluster, cell in zip([sample_name] * sample_umap.shape[0], sample_umap['Cell ID'].tolist())
+        ]
+    keep_cell = [cell in sample_umap['Cell ID'].tolist() for cell in sample_index['Cell ID'].tolist()]
+    sample = sample[keep_cell]
 
-umap_ordered = sample_index.merge(sample_umap,on="Cell ID")
-umap_ordered = umap_ordered.iloc[:,1:]
-sample.obsm['X_umap'] = umap_ordered.values
+    umap_ordered = sample_index.merge(sample_umap,on="Cell ID")
+    umap_ordered = umap_ordered.iloc[:,1:]
+    sample.obsm['X_umap'] = umap_ordered.values
 
-sample.obs['Cell ID'] = sample.obs.index
-sample.obs = sample.obs.merge(cell_clusters,on="Cell ID")
-sample.obs.index = sample.obs['Cell ID']
+    sample.obs['Cell ID'] = sample.obs.index
+    sample.obs = sample.obs.merge(cell_clusters,on="Cell ID")
+    sample.obs.index = sample.obs['Cell ID']
 
-scv.pp.filter_and_normalize(sample)
-scv.pp.moments(sample)
-scv.tl.velocity(sample, mode = "stochastic")
-scv.tl.velocity_graph(sample)
+    scv.pp.filter_and_normalize(sample)
+    scv.pp.moments(sample)
+    scv.tl.velocity(sample, mode = "stochastic")
+    scv.tl.velocity_graph(sample)
 
-colours = cell_clusters[["seurat_clusters", "cluster_colours"]].drop_duplicates()
-colours_dict = {str(cluster):colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)}
-colours_dict = {str(key): colours_dict[str(key)] for key in list(set([i for i in sample.obs["seurat_clusters"]]))}
+    colours = cell_clusters[["seurat_clusters", "cluster_colours"]].drop_duplicates()
+    colours_dict = {str(cluster):colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)}
+    colours_dict = {str(key): colours_dict[str(key)] for key in list(set([i for i in sample.obs["seurat_clusters"]]))}
 
-scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_embedding.pdf"), show=False)
-subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_embedding.pdf"), os.path.join(outdir, (sample_name + "_embedding.pdf"))])
+    scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_embedding.pdf"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_embedding.pdf"), os.path.join(outdir, (sample_name + "_embedding.pdf"))])
 
-scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', palette=colours_dict, save = (sample_name + "_stream.png"), show=False)
-subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_stream.png"), os.path.join(outdir, (sample_name + "_stream.png"))])
+    scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', palette=colours_dict, save = (sample_name + "_stream.png"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_stream.png"), os.path.join(outdir, (sample_name + "_stream.png"))])
 
-scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_UMAP.pdf"), show=False)
-subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_UMAP.pdf"), os.path.join(outdir, (sample_name + "_UMAP.pdf"))])
-#scv.pl.proportions(sample, groupby='seurat_clusters')
+    scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_UMAP.pdf"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_UMAP.pdf"), os.path.join(outdir, (sample_name + "_UMAP.pdf"))])
+    #scv.pl.proportions(sample, groupby='seurat_clusters')
 
 if __name__ == "__main__":
-main(sys.argv[1:])
+    main(sys.argv[1:])
