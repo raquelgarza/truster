@@ -90,7 +90,7 @@ class Experiment:
             msg = "Quantification directory set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def getClustersAllSamples(self, outdir, excludeFilesPath=None, jobs=1):
+    def getClustersAllSamples(self, outdir, percMitochondrial = None, minGenes = None, excludeFilesPath=None, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -101,14 +101,14 @@ class Experiment:
                             excludeFile = os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, excludeFile)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, excludeFile)
                             else:
                                 msg = "Clustering " + sample.sampleId + " using all cells. File " + excludeFile + " not found.\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, None)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, None)
                             self.clustersExclusiveOutdir = outdir
                         else:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
-                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, None)
+                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, None)
                             self.clustersOutdir = outdir
                             self.clustersExclusiveOutdir = None
                         log.write(msg)
@@ -166,6 +166,44 @@ class Experiment:
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + "\n"
             with open(self.logfile, "a") as log:
+                log.write(msg)
+
+    def plotVelocityMerged(self, jobs=1):
+        with open(self.logfile, "a") as log:
+            try:
+                if not os.path.exists("velocity_scripts/"):
+                    os.makedirs("velocity_scripts", exist_ok=True)
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir, exist_ok=True)
+
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                os.path.join(cwd, "py_scripts/plotVelocity.py")
+                outdir = self.outdirMergedClusters
+                # print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
+                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.name, "-u", os.path.join(outdir, (self.name + "_cell_embeddings.csv")), "-c", os.path.join(outdir, (self.name + "_clusters.csv")), "-o", outdir]
+    
+                if self.slurm != None:
+    
+                    cmd = ' '.join(cmd)
+    
+                    jobFile =  os.path.join("velocity_scripts/", (self.sampleId + "_plotVelocity.sh"))
+                    try:
+                        jobId = runJob("plotVelocity", jobFile, cmd, self.slurm, self.modules)
+                        msg = sucessSubmit("plotVelocity", self.sampleId, jobId)
+                        log.write(msg)
+
+                        exitCode = waitForJob(jobId)
+                        msg = checkExitCodes("plotVelocity", ("Sample " + self.sampleId), jobId, exitCode)
+                        log.write(msg)
+                        
+                    except:
+                        msg = genericError("plotVelocity", self.sampleId)
+                        log.write(msg)
+                        return waitForJob(jobId)
+                else:
+                    subprocess.call(cmd)
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
     #def setProcessClustersOutdir(self, processClustersOutdir):

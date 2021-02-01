@@ -137,20 +137,23 @@ class Sample:
         self.clusters = []
         return
 
-    def getClusters(self, indir, outdir, exclude):
+    def getClusters(self, indir, outdir, percMitochondrial = None, minGenes = None, exclude = None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("getClusters_scripts"):
                     os.makedirs("getClusters_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
-                
+
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                
-                cmd = ["Rscript", os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId]
-                
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId]
+
                 if exclude != None:
                     cmd.extend(["-e", exclude])
+                if percMitochondrial != None:
+                    cmd.extend(["-p", str(percMitochondrial)])
+                if minGenes != None:
+                    cmd.extend(["-m", str(minGenes)])
 
                 if self.slurm != None:
                     cmd = ' '.join(cmd) 

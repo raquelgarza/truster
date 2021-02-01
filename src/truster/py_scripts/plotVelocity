@@ -13,27 +13,30 @@ def main(argv):
     loom_file = ''
     umap_file = ''
     clusters_file = ''
-    sample_name = ''
+    name = ''
     outdir = ''
+    mode = ''
     try:
-        opts, args = getopt.getopt(argv,"hl:n:u:c:o:",["loom=", "sample_name=", "umap=", "clusters=", "outdir="])
+        opts, args = getopt.getopt(argv,"hl:n:u:c:o:m:",["loom=", "name=", "umap=", "clusters=", "outdir=", "mode="])
     except getopt.GetoptError:
-        print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
+        print('plotVelocity -l <loom> -n <name> -u <umap> -c <clusters> -o <outdir> -m <mode>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
+            print('plotVelocity -l <loom> -n <name> -u <umap> -c <clusters> -o <outdir> -m <mode>')
             sys.exit()
         elif opt in ("-l", "--loom"):
             loom_file = arg
-        elif opt in ("-n", "--sample_name"):
-            sample_name = arg
+        elif opt in ("-n", "--name"):
+            name = arg
         elif opt in ("-u", "--umap"):
             umap_file = arg
         elif opt in ("-c", "--clusters"):
             clusters_file = arg
         elif opt in ("-o", "--outdir"):
             outdir = arg
+        elif opt in ("-m", "--mode"):
+            mode = arg
 
     # >>> sample = anndata.read_loom("FetalCortex/recovered_Seq030.Seq041.Seq044_FetalCortex/12.10.20_premRNA/1_counts/DA094/velocyto/DA094.loom")
     # Variable names are not unique. To make them unique, call `.var_names_make_unique`.
@@ -42,12 +45,28 @@ def main(argv):
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
-    sample = anndata.read_loom(loom_file)
+    if mode == "merged":
+        loom_files = loom_file.split(",")
+        for i in range(0,len(loom_files)):
+            print("i = " + str(i))
+            print("Loom file " + str(loom_files[i]))
+            sample_i = anndata.read_loom(loom_files[i].strip())
+            sample_i.var_names_make_unique()
+            if i == 0:
+                sample = sample_i
+            else:
+                sample = sample.concatenate(sample_i)
+            print(str(sample))
+    else:
+        sample = anndata.read_loom(loom_file)
+    
     sample_umap = pd.read_csv(umap_file)
     cell_clusters = pd.read_csv(clusters_file)
     cell_clusters["seurat_clusters"] = [str(i) for i in cell_clusters["seurat_clusters"]]
 
     sample_index = pd.DataFrame(sample.obs.index)
+    # original_index = [i.split("-") for i in sample_index[0]]
+    # sample_index = [i[0] for i in original_index]
     sample_index = sample_index.rename(columns = {0:'Cell ID'})
 
     sample_umap = sample_umap.rename(columns = {'Unnamed: 0':'Cell ID'})
@@ -55,12 +74,12 @@ def main(argv):
 
     cell_clusters['Cell ID'] = [
             '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-            for cluster, cell in zip([sample_name] * cell_clusters.shape[0], cell_clusters['Cell ID'].tolist())
+            for cluster, cell in zip([name] * cell_clusters.shape[0], cell_clusters['Cell ID'].tolist())
         ]
 
     sample_umap['Cell ID'] = [
             '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-            for cluster, cell in zip([sample_name] * sample_umap.shape[0], sample_umap['Cell ID'].tolist())
+            for cluster, cell in zip([name] * sample_umap.shape[0], sample_umap['Cell ID'].tolist())
         ]
     keep_cell = [cell in sample_umap['Cell ID'].tolist() for cell in sample_index['Cell ID'].tolist()]
     sample = sample[keep_cell]
@@ -82,14 +101,14 @@ def main(argv):
     colours_dict = {str(cluster):colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)}
     colours_dict = {str(key): colours_dict[str(key)] for key in list(set([i for i in sample.obs["seurat_clusters"]]))}
 
-    scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_embedding.pdf"), show=False)
-    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_embedding.pdf"), os.path.join(outdir, (sample_name + "_embedding.pdf"))])
+    scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (name + "_embedding.pdf"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + name + "_embedding.pdf"), os.path.join(outdir, (name + "_embedding.pdf"))])
 
-    scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', palette=colours_dict, save = (sample_name + "_stream.png"), show=False)
-    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_stream.png"), os.path.join(outdir, (sample_name + "_stream.png"))])
+    scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', palette=colours_dict, save = (name + "_stream.png"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + name + "_stream.png"), os.path.join(outdir, (name + "_stream.png"))])
 
-    scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (sample_name + "_UMAP.pdf"), show=False)
-    subprocess.call(["mv", ("./figures/scvelo_" + sample_name + "_UMAP.pdf"), os.path.join(outdir, (sample_name + "_UMAP.pdf"))])
+    scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (name + "_UMAP.pdf"), show=False)
+    subprocess.call(["mv", ("./figures/scvelo_" + name + "_UMAP.pdf"), os.path.join(outdir, (name + "_UMAP.pdf"))])
     #scv.pl.proportions(sample, groupby='seurat_clusters')
 
 if __name__ == "__main__":

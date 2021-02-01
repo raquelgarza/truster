@@ -16,6 +16,10 @@ option_list = list(
               help="Output path", metavar="character"),
   make_option(c("-s", "--sample"), type="character", default=NULL,
               help="Sample name", metavar="character"),
+  make_option(c("-p", "--percMitochondria"), type="character", default=NULL,
+              help="Maximum percentage of mitochondrial counts", metavar="character"),
+  make_option(c("-m", "--minGenes"), type="character", default=500,
+              help="Minimum number of genes detected per cell. Default 500.", metavar="character"),
   make_option(c("-e", "--exclude"), type="character", default=NULL,
               help="Exclude cells", metavar="character")
 );
@@ -31,14 +35,20 @@ if (is.null(opt$inpath) | is.null(opt$outpath) | is.null(opt$sample)){
 path <- ifelse(endsWith(opt$inpath, "/"), opt$inpath, paste(opt$inpath, '/', sep=''))
 sample_name <- trimws(opt$sample)
 outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/', sep=''))
+min_genes <- opt$minGenes
+perc_mito <- opt$percMitochondria
 exclude <- opt$exclude
 
 if(!is.null(exclude)){
   excluding <- fread(exclude, data.table = F, header = F)[,1]
   print(paste("Excluding some cells from ", exclude))
 }
-#print(path)
-#print(sample_name)
+print(paste("Path", path))
+print(paste("Sample", sample_name))
+print(paste("Outpath", outpath))
+print(paste("Min genes", min_genes))
+print(paste("Perc mito", perc_mito))
+print(paste("Exclude", exclude))
 
 sample.data <- Read10X(data.dir = path)
 sample <- CreateSeuratObject(counts = sample.data, project = sample_name, min.cells = 3, min.features = 200)
@@ -54,6 +64,11 @@ if(!is.null(exclude)){
   print(paste("sample now has ", ncol(sample), "cells"))
 }
 
+if(!is.null(perc_mito)){
+  sample <- subset(sample, subset = percent.mt < as.numeric(as.character(perc_mito)))
+}
+
+sample <- subset(sample, subset = nCount_RNA > as.numeric(as.character(min_genes)))
 sample <- ScaleData(sample, features = all.genes)
 sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 sample <- FindNeighbors(sample, dims = 1:10)

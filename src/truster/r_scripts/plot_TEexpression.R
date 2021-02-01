@@ -16,7 +16,7 @@ set.seed(10)
 # Path to RData with Seurat object to use
 # Path of TEcounts melted csv file (output from normalize_TEexpression.R)
 # Mode. Merged samples or individual? (merged/individual)
-
+# 
 # rdatas = c('/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/fetalcortex.RData')
 # tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
 # inputs <- c('/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
@@ -164,9 +164,9 @@ te <- te[,order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2)))]
 colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(seurat.obj$seurat_clusters)))
 names(colours) <- as.character(unique(experiment$seurat_clusters))
 
-pdf(paste(outdir, name, "_heatmap.pdf", sep=''), height = 12, width = 6)
-pheatmap(te, cluster_cols = F, cluster_rows = F, annotation_col = colannot, 
+pdf(paste(outdir, name, "_heatmap.pdf", sep=''), height = 7, width = 7)
+pheatmap(log2(te+0.5), cluster_cols = F, cluster_rows = F, annotation_col = colannot, 
          annotation_colors = list(cluster = colours), labels_row = sapply(str_split(rownames(te), ":"), `[[`, 1),
-         labels_col = sapply(str_split(colnames(te), "_"), `[[`, 2), fontsize = 5)
+         labels_col = sapply(str_split(colnames(te), "_"), `[[`, 2))#, fontsize = 5
 dev.off()
 
