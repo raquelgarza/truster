@@ -96,7 +96,7 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def plotVelocity(self, loom, outdir):
+    def plotVelocity(self, loom, indir, outdir):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
@@ -107,7 +107,7 @@ class Sample:
                 cwd = os.path.dirname(os.path.realpath(__file__))
                 os.path.join(cwd, "py_scripts/plotVelocity.py")
                 # print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
-                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.sampleId, "-u", os.path.join(outdir, (self.sampleId + "_cell_embeddings.csv")), "-c", os.path.join(outdir, (self.sampleId + "_clusters.csv")), "-o", outdir]
+                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.sampleId, "-u", os.path.join(indir, (self.sampleId + "_cell_embeddings.csv")), "-c", os.path.join(indir, (self.sampleId + "_clusters.csv")), "-o", outdir]
     
                 if self.slurm != None:
     
@@ -137,7 +137,7 @@ class Sample:
         self.clusters = []
         return
 
-    def getClusters(self, indir, outdir, percMitochondrial = None, minGenes = None, exclude = None):
+    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, exclude = None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("getClusters_scripts"):
@@ -145,8 +145,9 @@ class Sample:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
 
+                res = str(res)
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res]
 
                 if exclude != None:
                     cmd.extend(["-e", exclude])

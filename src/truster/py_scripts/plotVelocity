@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import getopt
+import loompy
 
 def main(argv):
     loom_file = ''
@@ -45,43 +46,47 @@ def main(argv):
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
+    loom_files = loom_file.split(",")
+    loom_files = [i.strip() for i in loom_files]
+    umap_files = umap_file.split(",")
+    umap_files = [i.strip() for i in umap_files]
+    clusters_files = clusters_file.split(",")
+    clusters_files = [i.strip() for i in clusters_files]
+    names = name.split(",")
+    names = [i.strip() for i in names]
     if mode == "merged":
-        loom_files = loom_file.split(",")
-        for i in range(0,len(loom_files)):
-            print("i = " + str(i))
-            print("Loom file " + str(loom_files[i]))
-            sample_i = anndata.read_loom(loom_files[i].strip())
-            sample_i.var_names_make_unique()
-            if i == 0:
-                sample = sample_i
-            else:
-                sample = sample.concatenate(sample_i)
-            print(str(sample))
-    else:
-        sample = anndata.read_loom(loom_file)
+        name = "merged"
+        loompy.combine(files = loom_files, output_file = loom_file, key = "Accession")
+
+    sample = anndata.read_loom(loom_file)
     
-    sample_umap = pd.read_csv(umap_file)
-    cell_clusters = pd.read_csv(clusters_file)
-    cell_clusters["seurat_clusters"] = [str(i) for i in cell_clusters["seurat_clusters"]]
-
+    for i in range(0, len(names)):
+        names_i = names[i]
+        umap_i = pd.read_csv(umap_files[i])
+        clusters_i = pd.read_csv(clusters_files[i])
+        
+        umap_i = umap_i.rename(columns = {'Unnamed: 0':'Cell ID'})
+        clusters_i = clusters_i.rename(columns={'Unnamed: 0': 'Cell ID'})
+        clusters_i['Cell ID'] = [
+            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
+            for cluster, cell in zip([names_i] * clusters_i.shape[0], clusters_i['Cell ID'].tolist())
+        ]
+        umap_i['Cell ID'] = [
+            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
+            for cluster, cell in zip([names_i] * umap_i.shape[0], umap_i['Cell ID'].tolist())
+        ]
+        if i == 0:
+            cell_clusters = clusters_i
+            sample_umap = umap_i
+        else:
+            frames = [cell_clusters, clusters_i]
+            cell_clusters = pd.concat(frames)
+            frames = [sample_umap, umap_i]
+            sample_umap = pd.concat(frames)
+    
     sample_index = pd.DataFrame(sample.obs.index)
-    # original_index = [i.split("-") for i in sample_index[0]]
-    # sample_index = [i[0] for i in original_index]
     sample_index = sample_index.rename(columns = {0:'Cell ID'})
-
-    sample_umap = sample_umap.rename(columns = {'Unnamed: 0':'Cell ID'})
-    cell_clusters = cell_clusters.rename(columns={'Unnamed: 0': 'Cell ID'})
-
-    cell_clusters['Cell ID'] = [
-            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-            for cluster, cell in zip([name] * cell_clusters.shape[0], cell_clusters['Cell ID'].tolist())
-        ]
-
-    sample_umap['Cell ID'] = [
-            '%s:%sx' % (cluster, re.sub('-[0-9]+$', '', cell))
-            for cluster, cell in zip([name] * sample_umap.shape[0], sample_umap['Cell ID'].tolist())
-        ]
-    keep_cell = [cell in sample_umap['Cell ID'].tolist() for cell in sample_index['Cell ID'].tolist()]
+    keep_cell = [cell for cell in sample_index['Cell ID'].tolist() if cell in sample_umap['Cell ID'].tolist()]
     sample = sample[keep_cell]
 
     umap_ordered = sample_index.merge(sample_umap,on="Cell ID")
@@ -89,7 +94,7 @@ def main(argv):
     sample.obsm['X_umap'] = umap_ordered.values
 
     sample.obs['Cell ID'] = sample.obs.index
-    sample.obs = sample.obs.merge(cell_clusters,on="Cell ID")
+    sample.obs = pd.merge(left = sample.obs, right = cell_clusters, on="Cell ID")
     sample.obs.index = sample.obs['Cell ID']
 
     scv.pp.filter_and_normalize(sample)
@@ -98,8 +103,9 @@ def main(argv):
     scv.tl.velocity_graph(sample)
 
     colours = cell_clusters[["seurat_clusters", "cluster_colours"]].drop_duplicates()
-    colours_dict = {str(cluster):colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)}
-    colours_dict = {str(key): colours_dict[str(key)] for key in list(set([i for i in sample.obs["seurat_clusters"]]))}
+    colours_dict = {cluster:colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)}
+    colours_dict.update({str(cluster):colour for cluster,colour in zip(colours.seurat_clusters, colours.cluster_colours)})
+    colours_dict.update({key: colours_dict[str(key)] for key in list(set([i for i in sample.obs["seurat_clusters"]]))})
 
     scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (name + "_embedding.pdf"), show=False)
     subprocess.call(["mv", ("./figures/scvelo_" + name + "_embedding.pdf"), os.path.join(outdir, (name + "_embedding.pdf"))])
@@ -109,7 +115,6 @@ def main(argv):
 
     scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (name + "_UMAP.pdf"), show=False)
     subprocess.call(["mv", ("./figures/scvelo_" + name + "_UMAP.pdf"), os.path.join(outdir, (name + "_UMAP.pdf"))])
-    #scv.pl.proportions(sample, groupby='seurat_clusters')
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -90,25 +90,26 @@ class Experiment:
             msg = "Quantification directory set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def getClustersAllSamples(self, outdir, percMitochondrial = None, minGenes = None, excludeFilesPath=None, jobs=1):
+    def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, excludeFilesPath=None, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sample in list(self.samples.values()):
                         sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
                         sampleOutdir = os.path.join(outdir, sample.sampleId)
+                        res = str(res)
                         if excludeFilesPath != None:
                             excludeFile = os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, excludeFile)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, excludeFile)
                             else:
                                 msg = "Clustering " + sample.sampleId + " using all cells. File " + excludeFile + " not found.\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, None)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, None)
                             self.clustersExclusiveOutdir = outdir
                         else:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
-                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, percMitochondrial, minGenes, None)
+                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, None)
                             self.clustersOutdir = outdir
                             self.clustersExclusiveOutdir = None
                         log.write(msg)
@@ -155,13 +156,14 @@ class Experiment:
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
-    def plotVelocityAllSamples(self, jobs=1):
+    def plotVelocityAllSamples(self, indir, jobs=1):
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
                     loom = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", (sample.sampleId + ".loom"))
                     sampleOutdir = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", "plots")
-                    executor.submit(sample.plotVelocity, loom, sampleOutdir)
+                    sampleIndir = os.path.join(indir, sample.sampleId)
+                    executor.submit(sample.plotVelocity, loom, sampleIndir, sampleOutdir)
                 executor.shutdown(wait=True)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + "\n"

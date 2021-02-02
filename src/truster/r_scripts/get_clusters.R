@@ -16,6 +16,8 @@ option_list = list(
               help="Output path", metavar="character"),
   make_option(c("-s", "--sample"), type="character", default=NULL,
               help="Sample name", metavar="character"),
+  make_option(c("-r", "--resolution"), type="character", default=0.5,
+              help="Resolution. Default 0.5", metavar="character"),
   make_option(c("-p", "--percMitochondria"), type="character", default=NULL,
               help="Maximum percentage of mitochondrial counts", metavar="character"),
   make_option(c("-m", "--minGenes"), type="character", default=500,
@@ -38,6 +40,7 @@ outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/
 min_genes <- opt$minGenes
 perc_mito <- opt$percMitochondria
 exclude <- opt$exclude
+res <- as.numeric(as.character(opt$resolution))
 
 if(!is.null(exclude)){
   excluding <- fread(exclude, data.table = F, header = F)[,1]
@@ -72,7 +75,7 @@ sample <- subset(sample, subset = nCount_RNA > as.numeric(as.character(min_genes
 sample <- ScaleData(sample, features = all.genes)
 sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 sample <- FindNeighbors(sample, dims = 1:10)
-sample <- FindClusters(sample, resolution = 0.5)
+sample <- FindClusters(sample, resolution = res)
 sample <- RunUMAP(sample, dims = 1:10)
 write.csv(Embeddings(sample, reduction = "umap"), file = paste(outpath, '/', sample_name, "_cell_embeddings.csv", sep=''))
 

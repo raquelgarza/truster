@@ -71,12 +71,10 @@ experiment <- FindNeighbors(experiment, dims = 1:10)
 experiment <- FindClusters(experiment, resolution = 0.5)
 experiment <- RunUMAP(experiment, dims = 1:10)
 
-# Make the cells to start with the 
-View(as.data.frame(Cells(experiment)))
-View(as.data.frame(Cells(da094)))
-View(as.data.frame(Cells(seq098_2)))
-
-write.csv(Embeddings(experiment, reduction = "umap"), file = paste(outpath, '/', experiment_name, "_cell_embeddings.csv", sep=''))
+# # Make the cells to start with the 
+# View(as.data.frame(Cells(experiment)))
+# View(as.data.frame(Cells(da094)))
+# View(as.data.frame(Cells(seq098_2)))
 
 colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(experiment$seurat_clusters)))
 names(colours) <- as.character(unique(experiment$seurat_clusters))
@@ -85,7 +83,14 @@ experiment_colours <- merge(data.frame(seurat_clusters=unique(experiment$seurat_
 experiment@meta.data <- experiment@meta.data[,which(!startsWith(colnames(experiment@meta.data), 'cluster_colours'))]
 experiment@meta.data <- merge(experiment@meta.data, experiment_colours, by='seurat_clusters')
 rownames(experiment@meta.data) <- experiment@meta.data$cellIds
-write.csv(experiment@meta.data[,c('seurat_clusters', 'cluster_colours'), drop=F], file = paste(outpath, '/', experiment_name, "_clusters.csv", sep=''))
+
+for(i in 1:length(ids)){
+  id <- ids[i]
+  embedding <- Embeddings(subset(experiment, subset = orig.ident == id), reduction = "umap")
+  cluster_colours <- experiment@meta.data[rownames(embedding), c('seurat_clusters', 'cluster_colours'), drop=F]
+  write.csv(embedding, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
+  write.csv(cluster_colours, file = paste(outpath, '/', id, "_clusters.csv", sep=''))
+}
 
 df <- as.data.frame(experiment$seurat_clusters)
 colnames(df) <- 'clusters'
