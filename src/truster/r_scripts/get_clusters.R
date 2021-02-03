@@ -87,6 +87,8 @@ sample@meta.data <- merge(sample@meta.data, sample_colours, by='seurat_clusters'
 rownames(sample@meta.data) <- sample@meta.data$cellIds
 write.csv(sample@meta.data[,c('seurat_clusters', 'cluster_colours'), drop=F], file = paste(outpath, '/', sample_name, "_clusters.csv", sep=''))
 
+sample@meta.data <- sample@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
+
 df <- as.data.frame(sample$seurat_clusters)
 colnames(df) <- 'clusters'
 

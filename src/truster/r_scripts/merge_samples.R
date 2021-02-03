@@ -48,9 +48,10 @@ print(c("Experiment name: ", experiment_name))
 
 for(i in 1:length(paths)){
   path <- paths[i]
-
+  
   load(path)
-
+  
+  sample@meta.data$original_cellIds <- as.data.frame(sample@meta.data["cellIds"])$cellIds
   if(i == 1)
   {
     experiment <- sample
@@ -86,9 +87,18 @@ rownames(experiment@meta.data) <- experiment@meta.data$cellIds
 
 for(i in 1:length(ids)){
   id <- ids[i]
-  embedding <- Embeddings(subset(experiment, subset = orig.ident == id), reduction = "umap")
-  cluster_colours <- experiment@meta.data[rownames(embedding), c('seurat_clusters', 'cluster_colours'), drop=F]
-  write.csv(embedding, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
+  sample <- subset(experiment, subset = orig.ident == id)
+  embedding <- Embeddings(sample, reduction = "umap")
+  embedding_origcellIds <- merge(embedding, experiment@meta.data[rownames(embedding), c('original_cellIds'), drop=F], by='row.names')
+  rownames(embedding_origcellIds) <- embedding_origcellIds$original_cellIds
+  embedding_origcellIds <- embedding_origcellIds[,c("UMAP_1", "UMAP_2")]
+  
+  cluster_colours <- experiment@meta.data[rownames(embedding), c('original_cellIds', 'seurat_clusters', 'cluster_colours'), drop=F]
+  rownames(cluster_colours) <- cluster_colours$original_cellIds
+  cluster_colours <- cluster_colours[,-1]
+  
+  experiment@meta.data <- experiment@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
+  write.csv(embedding_origcellIds, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
   write.csv(cluster_colours, file = paste(outpath, '/', id, "_clusters.csv", sep=''))
 }
 
@@ -98,24 +108,22 @@ colnames(df) <- 'clusters'
 
 for(i in 1:length(ids)){
   sampleid <- ids[i]
-  print(sampleid)
-  print(table(experiment$orig.ident))
   sample <- subset(experiment, subset = orig.ident == sampleid)
-
+  
   df <- as.data.frame(sample$seurat_clusters)
   colnames(df) <- 'clusters'
-
+  
   for (k in 1:length(unique(df$clusters))){
     cluster <- unique(df$clusters)[k]
     df.cluster <- subset(df, df$clusters == cluster)
     df.cluster$barcode <- rownames(df.cluster)
-
+    
     dir.create(outpath)
     file_name <- paste(outpath, '/', sampleid, '_merged.clusters_', cluster, '.tsv', sep = '')
     print(file_name)
     write.table(sapply(str_split(df.cluster$barcode, "_"), `[[`, 1), file = file_name, row.names = F, col.names = F, quote = F)
   }
-
+  
 }
 
 save(experiment, file=paste(outpath, experiment_name, ".RData", sep=''))

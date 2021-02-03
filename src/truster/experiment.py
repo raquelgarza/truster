@@ -170,7 +170,7 @@ class Experiment:
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
-    def plotVelocityMerged(self, jobs=1):
+    def plotVelocityMerged(self, loom, names):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
@@ -182,7 +182,7 @@ class Experiment:
                 os.path.join(cwd, "py_scripts/plotVelocity.py")
                 outdir = self.outdirMergedClusters
                 # print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
-                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.name, "-u", os.path.join(outdir, (self.name + "_cell_embeddings.csv")), "-c", os.path.join(outdir, (self.name + "_clusters.csv")), "-o", outdir]
+                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", ','.join(loom), "-n", ','.join(names), "-u", ','.join([os.path.join(outdir, (name + "_cell_embeddings.csv")) for name in names]), "-c", ','.join([os.path.join(outdir, (name + "_clusters.csv")) for name in names]), "-o", outdir]
     
                 if self.slurm != None:
     

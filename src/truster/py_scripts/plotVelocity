@@ -56,6 +56,7 @@ def main(argv):
     names = [i.strip() for i in names]
     if mode == "merged":
         name = "merged"
+        loom_file = os.path.join(outdir, (name + ".loom"))
         loompy.combine(files = loom_files, output_file = loom_file, key = "Accession")
 
     sample = anndata.read_loom(loom_file)

@@ -12,7 +12,7 @@ set.seed(10)
 # Tab file of classification of transposons
 # Path to RData 
 # Path to TEcounts folder with output per cluster
-
+# 
 # mode = 'merged'
 # outdir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
 # indir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcounts/'
@@ -113,30 +113,42 @@ TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENSG'))
 coldata <- merge(coldata, num_reads, by='sample')  
 rownames(coldata) <- coldata$name
 te_counts_size <- TEcounts[, rownames(coldata)]
-# te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$cluster.size)
-# te_counts_size[] <- mapply('/', te_counts_size[, rownames(coldata)], coldata$num_reads)
-# te_counts_size <- te_counts_size[, rownames(coldata)] * 1e+10
+te_counts_size_norm <- te_counts_size
+te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$cluster.size)
+te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)
+te_counts_size_norm <- te_counts_size_norm[, rownames(coldata)] * 1e+10
 
+te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
 te_counts_size$te_id <- rownames(te_counts_size)
+te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id')))
 te_counts_size_melt <- reshape2::melt(te_counts_size, by=list(c('te_id')))
 
 if(mode == "merged"){
+  te_counts_size_norm_melt$cluster <- gsub("mergedCluster_", "", te_counts_size_norm_melt$variable)
   te_counts_size_melt$cluster <- gsub("mergedCluster_", "", te_counts_size_melt$variable)
 }else{
+  te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, '[[.]]'),`[[`, 2))
   te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
 }
 
 
+te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
 te_counts_size <- te_counts_size[,c(colnames(te_counts_size)[ncol(te_counts_size)], colnames(te_counts_size)[-ncol(te_counts_size)])]
-fwrite(te_counts_size, paste(outdir, 'TE_normalizedValues_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+fwrite(te_counts_size_norm, paste(outdir, 'TE_normalizedValues_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+# To compare with bulk data
+fwrite(te_counts_size, paste(outdir, 'TE_rawValues_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 
 if(mode == 'merged'){
+  te_counts_size_norm_aggr <- aggregate(te_counts_size_norm_melt$value, list(te_counts_size_norm_melt$te_id, te_counts_size_norm_melt$variable, te_counts_size_norm_melt$cluster), mean)
   te_counts_size_aggr <- aggregate(te_counts_size_melt$value, list(te_counts_size_melt$te_id, te_counts_size_melt$variable, te_counts_size_melt$cluster), mean)
   # te_counts_size_aggr <- aggregate(te_counts_size_melt$value, list(te_counts_size_melt$te_id, te_counts_size_melt$cluster), mean)
+  colnames(te_counts_size_norm_aggr) <- c('te_id', 'sample_cluster', 'cluster', 'value')
   colnames(te_counts_size_aggr) <- c('te_id', 'sample_cluster', 'cluster', 'value')
-  fwrite(te_counts_size_aggr, paste(outdir, 'TE_normalizedValues_aggregatedByClusters_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+  fwrite(te_counts_size_norm_aggr, paste(outdir, 'TE_normalizedValues_aggregatedByClusters_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+  fwrite(te_counts_size_aggr, paste(outdir, 'TE_rawValues_aggregatedByClusters_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 }else{
-  fwrite(te_counts_size_melt, paste(outdir, 'TE_normalizedValues_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+  fwrite(te_counts_size_norm_melt, paste(outdir, 'TE_normalizedValues_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+  fwrite(te_counts_size_melt, paste(outdir, 'TE_rawValues_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 }
 
 
