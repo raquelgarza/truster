@@ -703,7 +703,7 @@ class Experiment:
                         os.makedirs(outdirNorm, exist_ok=True)
                     
                     cwd = os.path.dirname(os.path.realpath(__file__))
-                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", mode, "-o", outdirNorm, "-i", indir, "-r", rdata]
+                    cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", mode, "-o", outdirNorm, "-i", indir, "-r", rdata, "-n", self.name]
 
                     if self.slurmPath != None:
                         cmd = ' '.join(cmd)

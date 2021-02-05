@@ -12,17 +12,20 @@ set.seed(10)
 # Tab file of classification of transposons
 # Path to RData 
 # Path to TEcounts folder with output per cluster
-# 
-# mode = 'merged'
-# outdir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
-# indir = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcounts/'
-# rdata = '/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/fetalcortex.RData'
+# # 
+mode = 'merged'
+obj_name = "mergedCluster"
+outdir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
+indir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcounts/'
+rdata = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
               help="Merged samples or individual? (merged/individual)", metavar="character"),
   make_option(c("-r", "--RData"), type="character", default=NULL,
               help="Path to RData with Seurat object", metavar="character"),
+  make_option(c("-n", "--name"), type="character", default=NULL,
+              help="Sample id or name", metavar="character"),
   make_option(c("-i", "--indir"), type="character", default=NULL,
               help="Path to TEcounts folder with output per cluster or parent directory from all samples folder", metavar="character"),
   make_option(c("-o", "--outdir"), type="character", default=NULL,
@@ -39,6 +42,7 @@ if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$RData) | is.null(opt$
 
 mode <- trimws(opt$mode)
 rdata <- opt$RData
+obj_name <- opt$name
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))
 
@@ -56,12 +60,12 @@ if(mode == 'merged'){
   seurat.obj <- experiment
   cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
   colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-  cluster_sizes$name <- paste("mergedCluster_", cluster_sizes$cluster, sep='')
+  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
 }else{
   seurat.obj <- sample
   cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
   colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-  cluster_sizes$name <- paste(cluster_sizes$sample, cluster_sizes$cluster, sep=".cluster_")
+  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep=".cluster_")
 }
 
 files <- list.files(indir, recursive = F)
@@ -69,15 +73,15 @@ coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
     cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
-    sample = paste("mergedCluster_", cluster, sep="")
-    name <- paste("mergedCluster_", cluster, sep="")
+    sample = paste(obj_name, cluster, sep="_")
+    name <- paste(obj_name, cluster, sep="_")
     coldata <- rbind(coldata, data.frame(sample=sample, name = name, cluster=cluster))
   }else{
     file_name <- sub("_$", "", sapply(str_split(files[i], '.cntTable'), `[[`, 1))
-    sample <- unlist(str_split(file_name, '_clusters'))[1]
+    # sample <- unlist(str_split(file_name, '_clusters'))[1]
     cluster <- unlist(str_split(file_name, 'clusters_'))[2]
-    name <- paste(sample, cluster, sep=".cluster_")
-    coldata <- rbind(coldata, data.frame(sample=sample, name=name, cluster=cluster))
+    name <- paste(obj_name, cluster, sep=".cluster_")
+    coldata <- rbind(coldata, data.frame(sample=obj_name, name=name, cluster=cluster))
   }
   
   file <- paste(indir, files[i], sep='')
@@ -115,8 +119,11 @@ rownames(coldata) <- coldata$name
 te_counts_size <- TEcounts[, rownames(coldata)]
 te_counts_size_norm <- te_counts_size
 te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$cluster.size)
-te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)
-te_counts_size_norm <- te_counts_size_norm[, rownames(coldata)] * 1e+10
+
+if(mode != "merged"){
+  te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)  
+  te_counts_size_norm <- te_counts_size_norm[, rownames(coldata)] * 1e+10
+}
 
 te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
 te_counts_size$te_id <- rownames(te_counts_size)

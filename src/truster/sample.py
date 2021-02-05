@@ -197,7 +197,7 @@ class Sample:
                     os.makedirs(outdir, exist_ok=True)
     
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdataPath]
+                cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdataPath, "-n", self.sampleId]
                 if self.slurm != None:
                     cmd = ' '.join(cmd)
                     jobFile =  os.path.join("normalizeTEcounts_scripts/", (self.sampleId + "_normalizeTEcounts.sh"))

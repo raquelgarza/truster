@@ -17,12 +17,24 @@ set.seed(10)
 # Path of TEcounts melted csv file (output from normalize_TEexpression.R)
 # Mode. Merged samples or individual? (merged/individual)
 # 
-# rdatas = c('/Volumes/My\ Passport/FetalCortex/16.01.21/3_mergeSamples/fetalcortex.RData')
+# rdatas = c('/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA094/DA094.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA103/DA103.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA140/DA140.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/Seq098_2/Seq098_2.Rdata')
 # tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
-# inputs <- c('/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
-# outdir <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/"
-# names <- c("fetalcortex")
-# modes <- c("merged")
+# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA094/TE_normalizedValues_melted.csv',
+#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA103/TE_normalizedValues_melted.csv',
+#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA140/TE_normalizedValues_melted.csv',
+#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/Seq098_2/TE_normalizedValues_melted.csv')
+# outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEplots/"
+# names <- c("DA094", "DA103", "DA140", "Seq098.2")
+# modes <- c("perSample", "perSample", "perSample", "perSample")
+
+
+rdatas = c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData')
+tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
+# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
+inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_rawValues_aggregatedByClusters_melted.csv')
+outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEplots/"
+names <- c("mergedCluster")
+modes <- c("merged")
 # plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
   make_option(c("-r", "--RDatas"), type="character", default=NULL,
@@ -100,13 +112,13 @@ if(file.exists(tes_ids_file)){
   return(2)
 }
 
-write.table(c("colour limits set to fit the expression of the following set of TE subfamilies\n", tes_ids), 
-            file = paste(outdir, "colourLimits.txt", sep = ''), quote = F,
-            col.names = F, row.names = F)
-
 if(!dir.exists(outdir)){
   dir.create(outdir, recursive = T)  
 }
+
+write.table(c("colour limits set to fit the expression of the following set of TE subfamilies\n", tes_ids), 
+            file = paste(outdir, "colourLimits.txt", sep = ''), quote = F,
+            col.names = F, row.names = F)
 
 te <- list()
 for(i in 1:length(names)){
@@ -124,6 +136,7 @@ te <- do.call(rbind, te)
 te$colour <- map2color(te$value, pal=mypal)
 
 plots <- list()
+library(ggplot2)
 for(j in 1:length(names(seurat.objs))){
   name <- names(seurat.objs)[j]
   seurat.obj <- seurat.objs[[name]]
@@ -150,23 +163,3 @@ for(j in 1:length(names(seurat.objs))){
                   # labels = paste(paste(unlist(str_split(names(plots), '_')), collapse=' '), "expression", sep=' ')))
   dev.off()
 }
-
-te <- reshape2::dcast(te[,c("sample_cluster","te_id","value")], te_id~sample_cluster)
-rownames(te) <- te$te_id
-te <- te[,-1]
-te <- te[tes_ids,]
-colannot <- data.frame(name = colnames(te[order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2))),]),
-                       cluster = sapply(str_split(colnames(te[order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2))),]), '_'), `[[`, 2))
-rownames(colannot) <- colannot$name
-colannot <- colannot[,"cluster", drop=F]
-te <- te[,order(as.numeric(sapply(str_split(colnames(te), "_"), `[[`, 2)))]
-
-colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(seurat.obj$seurat_clusters)))
-names(colours) <- as.character(unique(experiment$seurat_clusters))
-
-pdf(paste(outdir, name, "_heatmap.pdf", sep=''), height = 7, width = 7)
-pheatmap(log2(te+0.5), cluster_cols = F, cluster_rows = F, annotation_col = colannot, 
-         annotation_colors = list(cluster = colours), labels_row = sapply(str_split(rownames(te), ":"), `[[`, 1),
-         labels_col = sapply(str_split(colnames(te), "_"), `[[`, 2))#, fontsize = 5
-dev.off()
-
