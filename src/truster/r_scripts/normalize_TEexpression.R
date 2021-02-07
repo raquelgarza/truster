@@ -12,12 +12,12 @@ set.seed(10)
 # Tab file of classification of transposons
 # Path to RData 
 # Path to TEcounts folder with output per cluster
-# # 
-mode = 'merged'
-obj_name = "mergedCluster"
-outdir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
-indir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcounts/'
-rdata = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData'
+
+# mode = 'merged'
+# obj_name = "mergedCluster"
+# outdir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
+# indir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcounts/'
+# rdata = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -58,6 +58,8 @@ print(c("Output path: ", outdir))
 load(rdata)
 if(mode == 'merged'){
   seurat.obj <- experiment
+  # Maybe take this next three lines and put them out of the if? 
+  # I just made the combined stuff so please copy paste THESE next three lines. Just to make sure.
   cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
   colnames(cluster_sizes) <- c('cluster', 'cluster.size')
   cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
@@ -72,6 +74,8 @@ files <- list.files(indir, recursive = F)
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
+    # mergedCluster is how trusTEr is programmed to name the files
+    # not sure if it affects in anyway that obj_name is not mergedCluster. Please check this
     cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
     sample = paste(obj_name, cluster, sep="_")
     name <- paste(obj_name, cluster, sep="_")
@@ -103,6 +107,7 @@ num_reads <- data.frame(id=names(colSums(TEcounts[,rownames(coldata)])),
                         value=colSums(TEcounts[,rownames(coldata)]))
 if(mode != "merged"){
   num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
+  # If we are normalizing by seq depth per sample, we can aggregate per sample id
   num_reads <- aggregate(num_reads$value, by=list(num_reads$sample_id), FUN=sum)
 }
 
@@ -121,6 +126,9 @@ te_counts_size_norm <- te_counts_size
 te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$cluster.size)
 
 if(mode != "merged"){
+  # ONLY if it's per sample, divide the reads by the sequencing depth of the sample 
+  # Otherwise we end up dividing per number of reads in a cluster which is against what we want...
+  # Please ensure to take away "num_reads" if we are in merged mode
   te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)  
   te_counts_size_norm <- te_counts_size_norm[, rownames(coldata)] * 1e+10
 }

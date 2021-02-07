@@ -158,6 +158,7 @@ class Sample:
 
                 if self.slurm != None:
                     cmd = ' '.join(cmd) 
+                    log.write("Get clusters command : " + cmd)
                     jobFile =  os.path.join("getClusters_scripts/", (self.sampleId + "_getClusters.sh"))
                     try:
                         jobId = runJob("getClusters", jobFile, cmd, self.slurm, self.modules)

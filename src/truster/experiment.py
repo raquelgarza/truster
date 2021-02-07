@@ -95,11 +95,27 @@ class Experiment:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sample in list(self.samples.values()):
-                        sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
+                        if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
+                            sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
+                        elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
+                            sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleName)
+                        else:
+                            msg = "Error: File not found. Please make sure that " + self.quantifyOutdir + " contains a directory named as the sample ID or name. E.g. " + os.path.join(self.quantifyOutdir, sample.sampleName) + " or " + os.path.join(self.quantifyOutdir, sample.sampleId)
+                            log.write(msg)
+                            return 1
                         sampleOutdir = os.path.join(outdir, sample.sampleId)
                         res = str(res)
+
                         if excludeFilesPath != None:
-                            excludeFile = os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
+                            if os.path.isfile(os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))):
+                                excludeFile = os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
+                            elif os.path.isfile(os.path.join(excludeFilesPath, (sample.sampleName + "_exclude.tsv"))):
+                                excludeFile = os.path.join(excludeFilesPath, (sample.sampleName + "_exclude.tsv"))
+                            else:
+                                msg = "Error: File not found. Please make sure that " + excludeFilesPath + " contains a file named as the sample ID or name. E.g. " + os.path.join(excludeFilesPath, (sample.sampleName + "_exclude.tsv")) + " or " + os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))
+                                log.write(msg)
+                                return 1
+                            
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
                                 executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, excludeFile)
@@ -111,7 +127,6 @@ class Experiment:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
                             executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, None)
                             self.clustersOutdir = outdir
-                            self.clustersExclusiveOutdir = None
                         log.write(msg)
                 
             except KeyboardInterrupt:
@@ -127,6 +142,9 @@ class Experiment:
                     if os.path.isdir(os.path.join(clustersOutdir, i)) and  i == sample.sampleId:
                         msg = sample.registerClustersFromPath(os.path.join(clustersOutdir, sample.sampleId)) 
                         log.write(msg)
+                    elif os.path.isdir(os.path.join(clustersOutdir, i)) and  i == sample.sampleName:
+                        msg = sample.registerClustersFromPath(os.path.join(clustersOutdir, sample.sampleId)) 
+                        log.write(msg)
             msg = "The directory for clusters of individual samples is set to: " + clustersOutdir + ".\n"
             log.write(msg)
 
@@ -137,6 +155,9 @@ class Experiment:
             for sample in list(self.samples.values()):
                 for i in os.listdir(clustersExclusiveOutdir):
                     if os.path.isdir(os.path.join(clustersExclusiveOutdir, i)) and  i == sample.sampleId:
+                        msg = sample.registerClustersFromPath(os.path.join(clustersExclusiveOutdir, sample.sampleId))
+                        log.write(msg)
+                    elif os.path.isdir(os.path.join(clustersExclusiveOutdir, i)) and  i == sample.sampleName:
                         msg = sample.registerClustersFromPath(os.path.join(clustersExclusiveOutdir, sample.sampleId))
                         log.write(msg)
             msg = "The directory for clusters of individual samples is set to: " + clustersExclusiveOutdir + ". Which includes selected cells. Samples' clustering is now without the excluded cells.\n"
@@ -215,7 +236,7 @@ class Experiment:
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         with open(self.logfile, "a") as log:
-            if self.clustersExclusiveOutdir != None:
+            if hasattr(self, 'clustersExclusiveOutdir'):
                 samplesSeuratRdata = [os.path.join(self.clustersExclusiveOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
             else:
                 samplesSeuratRdata = [os.path.join(self.clustersOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
@@ -354,7 +375,14 @@ class Experiment:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sampleId, sample in samplesDict.items():
                         for cluster in sample.clusters:
-                            bam = os.path.join(self.quantifyOutdir, sampleId, "outs/possorted_genome_bam.bam")
+                            if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
+                                bam = os.path.join(self.quantifyOutdir, sample.sampleId, "outs/possorted_genome_bam.bam")
+                            elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
+                                bam = os.path.join(self.quantifyOutdir, sample.sampleName, "outs/possorted_genome_bam.bam")
+                            else:
+                                msg = "Error: File not found. Please make sure that " + self.quantifyOutdir + " contains a directory named as the sample ID or name. E.g. " + os.path.join(self.quantifyOutdir, sample.sampleName) + " or " + os.path.join(self.quantifyOutdir, sample.sampleId)
+                                log.write(msg)
+                                return 1
                             outdir_sample = os.path.join(outdir, "tsvToBam/", sampleId)
                             self.tsvToBam_results.append(executor.submit(cluster.tsvToBam, sampleId, bam, outdir_sample, self.slurm, self.modules))
 

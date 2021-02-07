@@ -51,7 +51,7 @@ for(i in 1:length(paths)){
   
   load(path)
   
-  sample@meta.data$original_cellIds <- as.data.frame(sample@meta.data["cellIds"])$cellIds
+  sample@meta.data$original_cellIds <- rownames(sample@meta.data)
   if(i == 1)
   {
     experiment <- sample
@@ -81,7 +81,7 @@ colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(experiment$se
 names(colours) <- as.character(unique(experiment$seurat_clusters))
 experiment@meta.data$cellIds <- rownames(experiment@meta.data)
 experiment_colours <- merge(data.frame(seurat_clusters=unique(experiment$seurat_clusters)), data.frame(cluster_colours = colours, seurat_clusters = names(colours)), by='seurat_clusters')
-experiment@meta.data <- experiment@meta.data[,which(!startsWith(colnames(experiment@meta.data), 'cluster_colours'))]
+experiment@meta.data <- experiment@meta.data[,which(!colnames(experiment@meta.data) == 'cluster_colours')]
 experiment@meta.data <- merge(experiment@meta.data, experiment_colours, by='seurat_clusters')
 rownames(experiment@meta.data) <- experiment@meta.data$cellIds
 
@@ -97,10 +97,10 @@ for(i in 1:length(ids)){
   rownames(cluster_colours) <- cluster_colours$original_cellIds
   cluster_colours <- cluster_colours[,-1]
   
-  experiment@meta.data <- experiment@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
   write.csv(embedding_origcellIds, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
   write.csv(cluster_colours, file = paste(outpath, '/', id, "_clusters.csv", sep=''))
 }
+experiment@meta.data <- experiment@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
 
 df <- as.data.frame(experiment$seurat_clusters)
 colnames(df) <- 'clusters'
