@@ -9,6 +9,16 @@ library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
+path <- '/Volumes/My Passport/FetalCortex/Dec2020/1_counts/DA094/'
+sample_name <- "DA094"
+# outpath <- '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/'
+# min_genes <- 1000
+# perc_mito <- 10
+# exclude <- NULL
+# res <- 0.5
+# normalization_method <- "CLR"
+
+
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
               help="Cellranger output path", metavar="character"),
@@ -21,7 +31,9 @@ option_list = list(
   make_option(c("-p", "--percMitochondria"), type="character", default=NULL,
               help="Maximum percentage of mitochondrial counts", metavar="character"),
   make_option(c("-m", "--minGenes"), type="character", default=500,
-              help="Minimum number of genes detected per cell. Default 500.", metavar="character"),
+              help="Minimum number of genes detected per cell. Default 500.", metavar="numeric"),
+  make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
+              help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
   make_option(c("-e", "--exclude"), type="character", default=NULL,
               help="Exclude cells", metavar="character")
 );
@@ -41,6 +53,7 @@ min_genes <- opt$minGenes
 perc_mito <- opt$percMitochondria
 exclude <- opt$exclude
 res <- as.numeric(as.character(opt$resolution))
+normalization_method <- as.character(opt$normalizationMethod)
 
 if(!is.null(exclude)){
   excluding <- fread(exclude, data.table = F, header = F)[,1]
@@ -56,7 +69,7 @@ print(paste("Exclude", exclude))
 sample.data <- Read10X(data.dir = path)
 sample <- CreateSeuratObject(counts = sample.data, project = sample_name, min.cells = 3, min.features = 200)
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
-sample <- NormalizeData(sample, normalization.method = "LogNormalize", scale.factor = 10000)
+sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
 
@@ -81,13 +94,16 @@ write.csv(Embeddings(sample, reduction = "umap"), file = paste(outpath, '/', sam
 
 colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(sample$seurat_clusters)))
 names(colours) <- as.character(unique(sample$seurat_clusters))
-sample@meta.data$cellIds <- rownames(sample@meta.data)
 sample_colours <- merge(data.frame(seurat_clusters=unique(sample$seurat_clusters)), data.frame(cluster_colours = colours, seurat_clusters = names(colours)), by='seurat_clusters')
-sample@meta.data <- merge(sample@meta.data, sample_colours, by='seurat_clusters')
-rownames(sample@meta.data) <- sample@meta.data$cellIds
-write.csv(sample@meta.data[,c('seurat_clusters', 'cluster_colours'), drop=F], file = paste(outpath, '/', sample_name, "_clusters.csv", sep=''))
+seurat_clusters_df <- as.data.frame(sample[["seurat_clusters"]])
+seurat_clusters_df$Row.names <- rownames(seurat_clusters_df)
+sample_colours <- merge(seurat_clusters_df, sample_colours, all.x = T)
+rownames(sample_colours) <- sample_colours$Row.names
+sample_colours <- structure(as.character(sample_colours$cluster_colours), names = as.character(sample_colours$Row.names))
+sample <- AddMetaData(sample, sample_colours, col.name = "cluster_colours")
 
-sample@meta.data <- sample@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
+write.csv(sample[[c("seurat_clusters", "cluster_colours")]], file = paste(outpath, '/', sample_name, "_clusters.csv", sep=''))
+sample[["cluster_colours"]] <- NULL
 
 df <- as.data.frame(sample$seurat_clusters)
 colnames(df) <- 'clusters'

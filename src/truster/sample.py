@@ -137,7 +137,7 @@ class Sample:
         self.clusters = []
         return
 
-    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, exclude = None):
+    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, normalizationMethod = "LogNormalize", exclude = None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("getClusters_scripts"):
@@ -147,7 +147,7 @@ class Sample:
 
                 res = str(res)
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res, "-n", normalizationMethod]
 
                 if exclude != None:
                     cmd.extend(["-e", exclude])

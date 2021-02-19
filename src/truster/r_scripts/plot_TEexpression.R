@@ -27,14 +27,14 @@ set.seed(10)
 # names <- c("DA094", "DA103", "DA140", "Seq098.2")
 # modes <- c("perSample", "perSample", "perSample", "perSample")
 
-
-rdatas = c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData')
-tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
-# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
-inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_rawValues_aggregatedByClusters_melted.csv')
-outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEplots/"
-names <- c("mergedCluster")
-modes <- c("merged")
+# 
+# rdatas = c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/fetalcortex.RData')
+# tes_ids_file <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
+# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
+# # inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEcountsNormalized/TE_rawValues_aggregatedByClusters_melted.csv')
+# outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEplots/"
+# names <- c("fetalCortex")
+# modes <- c("merged")
 # plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
   make_option(c("-r", "--RDatas"), type="character", default=NULL,
@@ -74,13 +74,6 @@ print(c("RData to be used: ", rdatas))
 print(c("Names to be used: ", names))
 print(c("Input file: ", inputs))
 print(c("Output path: ", outdir))
-
-map2color <- function(x,pal,limits=NULL){
-  if(is.null(limits)) limits=range(x)
-  pal[findInterval(x,seq(limits[1],limits[2],length.out=length(pal)+1), all.inside=TRUE)]
-}
-
-mypal <- colorRampPalette( c( "lightgrey", "red" ) )( 10 )
 
 counts <- list()
 for(i in 1:length(inputs)){
@@ -133,8 +126,6 @@ for(i in 1:length(names)){
 
 te <- do.call(rbind, te)
 
-te$colour <- map2color(te$value, pal=mypal)
-
 plots <- list()
 library(ggplot2)
 for(j in 1:length(names(seurat.objs))){
@@ -142,24 +133,23 @@ for(j in 1:length(names(seurat.objs))){
   seurat.obj <- seurat.objs[[name]]
   te_name <- te[which(te$condition == name),]
   
-  # te_name <- aggregate(te_name$value, by=list(te_name$cluster, te_name$te_id, te_name$condition), FUN=sum)
-  # te_name$x <- te_name$x / length(unique(seurat.obj$orig.ident))
-  te_name$colour <- map2color(te_name$value, pal=mypal)
-  colnames(te_name) <- c('te_id', 'name', 'cluster', 'value', 'condition', 'colour')
+  seurat_umap <- DimPlot(seurat.obj, reduction = 'umap')
+  umap <- seurat_umap$data
+  umap$cell_id <- rownames(umap)
+  umap <- merge(umap, te_name[,c('cluster', 'value', 'te_id')], by.x='ident', by.y='cluster', all.x = T)
   
   for(i in 1:length(tes_ids)){
     te_id <- tes_ids[i]
     te_subfam <- sapply(str_split(te_id, ":"), `[[`, 1)
     print(paste("TE subfamily ", te_subfam))
-    te_i_name <- te_name[which(te_name$te_id == te_id),]
-    te_i_name <- te_i_name[order(as.numeric(as.character(te_i_name$cluster))),]
-    
-    plots[[paste(name, te_subfam, sep = '_')]] <- DimPlot(seurat.obj, reduction='umap', cols = te_i_name$colour) + theme(legend.position = "none") + ggtitle(paste((name), te_subfam, sep = ' '))
+    umap_te <- umap[which(umap$te_id == te_id),]
+    plots[[paste(name, te_subfam, sep = '_')]] <- ggplot(umap_te, aes(x=UMAP_1, y=UMAP_2, colour=value)) + 
+      geom_point(size=0.5) + theme_classic() + ggtitle(te_subfam) +
+      scale_color_gradient(low="lightgrey", high="red", limits=c(min(umap$value), max(umap$value)))
     
   }
   
   pdf(paste(outdir, name, "_umap.pdf", sep=''), onefile = T)
-  print(plots[names(plots)[startsWith(names(plots), name)]])#,
-                  # labels = paste(paste(unlist(str_split(names(plots), '_')), collapse=' '), "expression", sep=' ')))
+  print(plots[names(plots)[startsWith(names(plots), name)]])
   dev.off()
 }

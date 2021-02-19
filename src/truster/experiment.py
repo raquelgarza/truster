@@ -90,7 +90,7 @@ class Experiment:
             msg = "Quantification directory set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, excludeFilesPath=None, jobs=1):
+    def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, normalizationMethod = "LogNormalize", excludeFilesPath=None, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -118,14 +118,14 @@ class Experiment:
                             
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, excludeFile)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, excludeFile)
                             else:
                                 msg = "Clustering " + sample.sampleId + " using all cells. File " + excludeFile + " not found.\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, None)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, None)
                             self.clustersExclusiveOutdir = outdir
                         else:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
-                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, None)
+                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, None)
                             self.clustersOutdir = outdir
                         log.write(msg)
                 
@@ -232,7 +232,7 @@ class Experiment:
     #def setProcessClustersOutdir(self, processClustersOutdir):
     #    self.processedClustersOutdir = processClustersOutdir
 
-    def mergeSamples(self, outdir):
+    def mergeSamples(self, outdir, normalizationMethod):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         with open(self.logfile, "a") as log:
@@ -256,7 +256,7 @@ class Experiment:
             # and output (-o) of the output directory desired, -s for sample ids,
             # and -e for sample names used in cellranger
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samplesSeuratRdata), "-o", outdir, "-s", ','.join(samplesIds), "-e", self.name]
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samplesSeuratRdata), "-o", outdir, "-s", ','.join(samplesIds), "-e", self.name, "-n", normalizationMethod]
             
             # If we are on a server with slurm, use the configuration file to send the jobs 
             if self.slurmPath != None:    

@@ -25,7 +25,9 @@ option_list = list(
   make_option(c("-o", "--outpath"), type="character", default=NULL,
               help="Output path", metavar="character"),
   make_option(c("-e", "--experimentName"), type="character", default=NULL,
-              help="Experiment name", metavar="character")
+              help="Experiment name", metavar="character"),
+  make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
+              help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character")
 );
 
 opt_parser = OptionParser(option_list=option_list);
@@ -40,6 +42,7 @@ paths <- trimws(unlist(str_split(opt$inpath, ',')))
 ids <- trimws(unlist(str_split(opt$ids, ',')))
 outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/', sep=''))
 experiment_name <- trimws(opt$experimentName)
+normalization_method <- as.character(opt$normalizationMethod)
 
 print(c("Input paths: ", paths))
 print(c("Input ids: ", ids))
@@ -63,7 +66,7 @@ for(i in 1:length(paths)){
 }
 
 experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
-experiment <- NormalizeData(experiment, normalization.method = "LogNormalize", scale.factor = 10000)
+experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000)
 experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes)
@@ -72,35 +75,37 @@ experiment <- FindNeighbors(experiment, dims = 1:10)
 experiment <- FindClusters(experiment, resolution = 0.5)
 experiment <- RunUMAP(experiment, dims = 1:10)
 
-# # Make the cells to start with the 
-# View(as.data.frame(Cells(experiment)))
-# View(as.data.frame(Cells(da094)))
-# View(as.data.frame(Cells(seq098_2)))
-
 colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(experiment$seurat_clusters)))
 names(colours) <- as.character(unique(experiment$seurat_clusters))
-experiment@meta.data$cellIds <- rownames(experiment@meta.data)
+experiment <- AddMetaData(experiment, rownames(experiment@meta.data), col.name = "cellIds")
 experiment_colours <- merge(data.frame(seurat_clusters=unique(experiment$seurat_clusters)), data.frame(cluster_colours = colours, seurat_clusters = names(colours)), by='seurat_clusters')
-experiment@meta.data <- experiment@meta.data[,which(!colnames(experiment@meta.data) == 'cluster_colours')]
-experiment@meta.data <- merge(experiment@meta.data, experiment_colours, by='seurat_clusters')
-rownames(experiment@meta.data) <- experiment@meta.data$cellIds
+experiment[["cluster_colours"]] <- NULL
+seurat_clusters_df <- as.data.frame(experiment[["seurat_clusters"]])
+seurat_clusters_df$Row.names <- rownames(seurat_clusters_df)
+experiment_colours <- merge(seurat_clusters_df, experiment_colours, all.x = T)
+rownames(experiment_colours) <- experiment_colours$Row.names
+experiment_colours <- structure(as.character(experiment_colours$cluster_colours), names = as.character(experiment_colours$Row.names))
+experiment <- AddMetaData(experiment, experiment_colours, col.name = "cluster_colours")
 
 for(i in 1:length(ids)){
   id <- ids[i]
   sample <- subset(experiment, subset = orig.ident == id)
   embedding <- Embeddings(sample, reduction = "umap")
-  embedding_origcellIds <- merge(embedding, experiment@meta.data[rownames(embedding), c('original_cellIds'), drop=F], by='row.names')
+  
+  embedding_origcellIds <- merge(embedding, experiment[['original_cellIds']][rownames(embedding),,drop=F], by='row.names')
   rownames(embedding_origcellIds) <- embedding_origcellIds$original_cellIds
   embedding_origcellIds <- embedding_origcellIds[,c("UMAP_1", "UMAP_2")]
   
-  cluster_colours <- experiment@meta.data[rownames(embedding), c('original_cellIds', 'seurat_clusters', 'cluster_colours'), drop=F]
+  cluster_colours <- experiment[[c("original_cellIds", "seurat_clusters", "cluster_colours")]][rownames(embedding),,drop=F]
   rownames(cluster_colours) <- cluster_colours$original_cellIds
   cluster_colours <- cluster_colours[,-1]
   
   write.csv(embedding_origcellIds, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
   write.csv(cluster_colours, file = paste(outpath, '/', id, "_clusters.csv", sep=''))
 }
-experiment@meta.data <- experiment@meta.data[,c("seurat_clusters", "orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "RNA_snn_res.0.5")]
+experiment[["cellIds"]] <- NULL
+experiment[["original_cellIds"]] <- NULL
+experiment[["cluster_colours"]] <- NULL
 
 df <- as.data.frame(experiment$seurat_clusters)
 colnames(df) <- 'clusters'

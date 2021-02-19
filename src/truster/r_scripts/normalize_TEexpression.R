@@ -14,10 +14,10 @@ set.seed(10)
 # Path to TEcounts folder with output per cluster
 
 # mode = 'merged'
-# obj_name = "mergedCluster"
-# outdir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/'
-# indir = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEcounts/'
-# rdata = '/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/fetalcortexPerSample.RData'
+# obj_name = "ctrl"
+# outdir = '/Volumes/My Passport/trim28/05.02.21/3_mergeSamples/ctrl/clusterPipeline/TEcountsNormalized/'
+# indir = '/Volumes/My Passport/trim28/05.02.21/3_mergeSamples/ctrl/clusterPipeline/TEcounts/'
+# rdata = '/Volumes/My Passport/trim28/05.02.21/3_mergeSamples/ctrl/ctrl.RData'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -58,24 +58,19 @@ print(c("Output path: ", outdir))
 load(rdata)
 if(mode == 'merged'){
   seurat.obj <- experiment
-  # Maybe take this next three lines and put them out of the if? 
-  # I just made the combined stuff so please copy paste THESE next three lines. Just to make sure.
-  cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
-  colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
 }else{
   seurat.obj <- sample
-  cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
-  colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep=".cluster_")
 }
+
+cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
+colnames(cluster_sizes) <- c('cluster', 'cluster.size')
+cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
 
 files <- list.files(indir, recursive = F)
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
     # mergedCluster is how trusTEr is programmed to name the files
-    # not sure if it affects in anyway that obj_name is not mergedCluster. Please check this
     cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
     sample = paste(obj_name, cluster, sep="_")
     name <- paste(obj_name, cluster, sep="_")
@@ -117,9 +112,12 @@ rownames(coldata) <- coldata$name
 colnames(num_reads) <- c('sample', 'num_reads')
 rownames(num_reads) <- num_reads$sample
 
-TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENSG'))
+TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENS'))
 
-coldata <- merge(coldata, num_reads, by='sample')  
+if(mode != "merged"){
+  coldata <- merge(coldata, num_reads, by='sample')  
+}
+
 rownames(coldata) <- coldata$name
 te_counts_size <- TEcounts[, rownames(coldata)]
 te_counts_size_norm <- te_counts_size
@@ -139,13 +137,12 @@ te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id
 te_counts_size_melt <- reshape2::melt(te_counts_size, by=list(c('te_id')))
 
 if(mode == "merged"){
-  te_counts_size_norm_melt$cluster <- gsub("mergedCluster_", "", te_counts_size_norm_melt$variable)
-  te_counts_size_melt$cluster <- gsub("mergedCluster_", "", te_counts_size_melt$variable)
+  te_counts_size_norm_melt$cluster <- gsub(paste(obj_name, "_", sep=''), "", te_counts_size_norm_melt$variable)
+  te_counts_size_melt$cluster <- gsub(paste(obj_name, "_", sep=''), "", te_counts_size_melt$variable)
 }else{
   te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, '[[.]]'),`[[`, 2))
   te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
 }
-
 
 te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
 te_counts_size <- te_counts_size[,c(colnames(te_counts_size)[ncol(te_counts_size)], colnames(te_counts_size)[-ncol(te_counts_size)])]

@@ -111,7 +111,7 @@ def main(argv):
     scv.pl.velocity_embedding(sample, arrow_length=5, arrow_size=3, dpi=120, color='seurat_clusters', palette=colours_dict, save = (name + "_embedding.pdf"), show=False)
     subprocess.call(["mv", ("./figures/scvelo_" + name + "_embedding.pdf"), os.path.join(outdir, (name + "_embedding.pdf"))])
 
-    scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', palette=colours_dict, save = (name + "_stream.png"), show=False)
+    scv.pl.velocity_embedding_stream(sample, basis='umap', color='seurat_clusters', dpi=320, palette=colours_dict, save = (name + "_stream.png"), show=False)
     subprocess.call(["mv", ("./figures/scvelo_" + name + "_stream.png"), os.path.join(outdir, (name + "_stream.png"))])
 
     scv.pl.umap(sample, color='seurat_clusters', palette=colours_dict, save = (name + "_UMAP.pdf"), show=False)
