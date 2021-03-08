@@ -12,7 +12,14 @@ set.seed(10)
 # Tab file of classification of transposons
 # Path to RData 
 # Path to TEcounts folder with output per cluster
-
+# 
+# 
+# mode = 'perSample'
+# obj_name = 'Seq098_2'
+# outdir = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/Seq098_2/'
+# indir = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcounts/Seq098_2/'
+# rdata = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/Seq098_2/Seq098_2.RData'
+# # 
 # mode = 'merged'
 # obj_name = "ctrl"
 # outdir = '/Volumes/My Passport/trim28/05.02.21/3_mergeSamples/ctrl/clusterPipeline/TEcountsNormalized/'
@@ -64,7 +71,7 @@ if(mode == 'merged'){
 
 cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
 colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
+cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='.cluster_')
 
 files <- list.files(indir, recursive = F)
 coldata <- data.frame()
@@ -73,7 +80,7 @@ for(i in 1:length(files)){
     # mergedCluster is how trusTEr is programmed to name the files
     cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
     sample = paste(obj_name, cluster, sep="_")
-    name <- paste(obj_name, cluster, sep="_")
+    name <- paste(obj_name, cluster, sep=".cluster_")
     coldata <- rbind(coldata, data.frame(sample=sample, name = name, cluster=cluster))
   }else{
     file_name <- sub("_$", "", sapply(str_split(files[i], '.cntTable'), `[[`, 1))
@@ -136,13 +143,8 @@ te_counts_size$te_id <- rownames(te_counts_size)
 te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id')))
 te_counts_size_melt <- reshape2::melt(te_counts_size, by=list(c('te_id')))
 
-if(mode == "merged"){
-  te_counts_size_norm_melt$cluster <- gsub(paste(obj_name, "_", sep=''), "", te_counts_size_norm_melt$variable)
-  te_counts_size_melt$cluster <- gsub(paste(obj_name, "_", sep=''), "", te_counts_size_melt$variable)
-}else{
-  te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, '[[.]]'),`[[`, 2))
-  te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
-}
+te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, '[[.]]'),`[[`, 2))
+te_counts_size_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_melt$variable, '[[.]]'),`[[`, 2))
 
 te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
 te_counts_size <- te_counts_size[,c(colnames(te_counts_size)[ncol(te_counts_size)], colnames(te_counts_size)[-ncol(te_counts_size)])]

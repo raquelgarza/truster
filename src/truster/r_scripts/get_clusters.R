@@ -9,10 +9,11 @@ library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
-path <- '/Volumes/My Passport/FetalCortex/Dec2020/1_counts/DA094/'
-sample_name <- "DA094"
-# outpath <- '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/'
+# path <- '/Volumes/My Passport/Gliomas/29.10.20/1_counts/Seq091_5/outs/filtered_feature_bc_matrix/'
+# sample_name <- "Seq091_5"
+# outpath <- '/Volumes/My Passport/Gliomas/15.02.21/2_getClusters/'
 # min_genes <- 1000
+# max_genes <- 7000
 # perc_mito <- 10
 # exclude <- NULL
 # res <- 0.5
@@ -30,12 +31,16 @@ option_list = list(
               help="Resolution. Default 0.5", metavar="character"),
   make_option(c("-p", "--percMitochondria"), type="character", default=NULL,
               help="Maximum percentage of mitochondrial counts", metavar="character"),
-  make_option(c("-m", "--minGenes"), type="character", default=500,
+  make_option(c("-m", "--minGenes"), type="numeric", default=500,
               help="Minimum number of genes detected per cell. Default 500.", metavar="numeric"),
+  make_option(c("-M", "--maxGenes"), type="numeric", default=7000,
+              help="Maximum number of genes detected per cell. Default 7000", metavar="numeric"),
   make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
               help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
   make_option(c("-e", "--exclude"), type="character", default=NULL,
-              help="Exclude cells", metavar="character")
+              help="Exclude cells", metavar="character"),
+  make_option(c("-S", "--maxSize"), type="numeric", default=500,
+              help = "Maximum size for global variables in MiB (future.globals.maxSize). This will increase your RAM usage.", metavar = "numeric")
 );
 
 opt_parser = OptionParser(option_list=option_list);
@@ -46,10 +51,12 @@ if (is.null(opt$inpath) | is.null(opt$outpath) | is.null(opt$sample)){
   stop("All argument must be supplied.", call.=FALSE)
 }
 
+options(future.globals.maxSize = as.numeric(as.character(opt$maxSize)) * 1024^2)
 path <- ifelse(endsWith(opt$inpath, "/"), opt$inpath, paste(opt$inpath, '/', sep=''))
 sample_name <- trimws(opt$sample)
 outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/', sep=''))
 min_genes <- opt$minGenes
+max_genes <- opt$maxGenes
 perc_mito <- opt$percMitochondria
 exclude <- opt$exclude
 res <- as.numeric(as.character(opt$resolution))
@@ -65,11 +72,15 @@ print(paste("Outpath", outpath))
 print(paste("Min genes", min_genes))
 print(paste("Perc mito", perc_mito))
 print(paste("Exclude", exclude))
+print(paste("Resolution", as.character(res)))
+print(paste("Normalization method", normalization_method))
+print(paste("Future global max size", as.character(opt$maxSize)))
 
 sample.data <- Read10X(data.dir = path)
 sample <- CreateSeuratObject(counts = sample.data, project = sample_name, min.cells = 3, min.features = 200)
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
+sample <- subset(sample, subset = nFeature_RNA > min_genes & nFeature_RNA < max_genes)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
 
@@ -84,7 +95,6 @@ if(!is.null(perc_mito)){
   sample <- subset(sample, subset = percent.mt < as.numeric(as.character(perc_mito)))
 }
 
-sample <- subset(sample, subset = nCount_RNA > as.numeric(as.character(min_genes)))
 sample <- ScaleData(sample, features = all.genes)
 sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 sample <- FindNeighbors(sample, dims = 1:10)
@@ -118,11 +128,7 @@ for (k in 1:length(unique(df$clusters))){
     write.table(df.cluster$barcode, file = file_name, row.names = F, col.names = F, quote = F)
 }
 
-if(!is.null(exclude)){
-  save(sample, excluding, file = paste(outpath, '/', sample_name, ".RData", sep=''))
-}else{
-  save(sample, file = paste(outpath, '/', sample_name, ".RData", sep=''))  
-}
+saveRDS(sample, file = paste(outpath, '/', sample_name, ".rds", sep=''))
 
 
 

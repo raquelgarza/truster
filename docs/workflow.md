@@ -132,7 +132,11 @@ gene_gtf = 'path/to/gene.gtf'
 te_gtf = 'path/to/te.gtf'
 star_index = 'path/to/star/index'
 
-example.processClusters(mode = "merged", outdir = output, geneGTF = gene_gtf, teGTF = te_gtf, starIndex = star_index)
+example.processClusters(mode = "merged",
+                        outdir = output, 
+                        geneGTF = gene_gtf, 
+                        teGTF = te_gtf, 
+                        starIndex = star_index)
 ```
 
 #### Step by step

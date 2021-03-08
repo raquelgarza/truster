@@ -42,11 +42,10 @@ class Sample:
                         # Without this one being completed other functions might not be able to run.
                         msg = sucessSubmit("counts", self.sampleId, jobId)
                         log.write(msg)
+                        exitCode = waitForJob(jobId)
                         msg = checkExitCodes("counts", ("Sample " + self.sampleId),jobId, exitCode)
                         log.write(msg)
-    
-                        exitCode = waitForJob(jobId)
-                        
+
                         if exitCode == 0:
                             subprocess.call("mv", self.sampleId, outdir)
     
@@ -137,7 +136,7 @@ class Sample:
         self.clusters = []
         return
 
-    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, normalizationMethod = "LogNormalize", exclude = None):
+    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, maxGenes = 7000, normalizationMethod = "LogNormalize", exclude = None, maxSize=500):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("getClusters_scripts"):
@@ -146,8 +145,11 @@ class Sample:
                     os.makedirs(outdir, exist_ok=True)
 
                 res = str(res)
+                maxSize = str(maxSize)
+                maxGenes = str(maxGenes)
+                
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res, "-n", normalizationMethod]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res, "-n", normalizationMethod, "-S", maxSize, "-M", maxGenes]
 
                 if exclude != None:
                     cmd.extend(["-e", exclude])
@@ -166,11 +168,11 @@ class Sample:
                         log.write(msg)
 
                         exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("getClusters", ("Sample " + self.sampleId),jobId, exitCode)
+                        msg = checkExitCodes("getClusters", ("Sample " + self.sampleId), jobId, exitCode)
                         log.write(msg)
                         
                         if exitCode == 0:
-                            self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j)) for j in os.listdir(outdir) if j.endswith(".tsv")]
+                            self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
                             self.rdataPath = os.path.join(outdir, (self.sampleId + ".RData"))
                         return exitCode
                     except:

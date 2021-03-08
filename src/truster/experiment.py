@@ -90,7 +90,7 @@ class Experiment:
             msg = "Quantification directory set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, normalizationMethod = "LogNormalize", excludeFilesPath=None, jobs=1):
+    def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, maxGenes = None, normalizationMethod = "LogNormalize", excludeFilesPath=None, maxSize = 500, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -105,6 +105,9 @@ class Experiment:
                             return 1
                         sampleOutdir = os.path.join(outdir, sample.sampleId)
                         res = str(res)
+                        maxSize = str(maxSize)
+                        minGenes = str(minGenes)
+                        maxGenes = str(maxGenes)
 
                         if excludeFilesPath != None:
                             if os.path.isfile(os.path.join(excludeFilesPath, (sample.sampleId + "_exclude.tsv"))):
@@ -118,14 +121,14 @@ class Experiment:
                             
                             if os.path.isfile(excludeFile):
                                 msg = "Clustering " + sample.sampleId + " excluding from " + excludeFile + "\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, excludeFile)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, maxGenes, normalizationMethod, excludeFile, maxSize)
                             else:
                                 msg = "Clustering " + sample.sampleId + " using all cells. File " + excludeFile + " not found.\n"
-                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, None)
+                                executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, maxGenes, normalizationMethod, None, maxSize)
                             self.clustersExclusiveOutdir = outdir
                         else:
                             msg = "Clustering " + sample.sampleId + " using all cells.\n"
-                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, normalizationMethod, None)
+                            executor.submit(sample.getClusters, sampleIndir, sampleOutdir, res, percMitochondrial, minGenes, maxGenes, normalizationMethod, None, maxSize)
                             self.clustersOutdir = outdir
                         log.write(msg)
                 
@@ -232,14 +235,14 @@ class Experiment:
     #def setProcessClustersOutdir(self, processClustersOutdir):
     #    self.processedClustersOutdir = processClustersOutdir
 
-    def mergeSamples(self, outdir, normalizationMethod):
+    def mergeSamples(self, outdir, normalizationMethod, integrateSamples = "FALSE", maxSize=500):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         with open(self.logfile, "a") as log:
             if hasattr(self, 'clustersExclusiveOutdir'):
-                samplesSeuratRdata = [os.path.join(self.clustersExclusiveOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
+                samplesSeuratRdata = [os.path.join(self.clustersExclusiveOutdir, sample.sampleId, (sample.sampleId + ".rds")) for sample in list(self.samples.values())]
             else:
-                samplesSeuratRdata = [os.path.join(self.clustersOutdir, sample.sampleId, (sample.sampleId + ".RData")) for sample in list(self.samples.values())]
+                samplesSeuratRdata = [os.path.join(self.clustersOutdir, sample.sampleId, (sample.sampleId + ".rds")) for sample in list(self.samples.values())]
             
             # Sample ids
             samplesIds = [sample.sampleId for sample in list(self.samples.values())]
@@ -251,12 +254,13 @@ class Experiment:
                 os.makedirs("mergeSamples_scripts", exist_ok=True)
             if not os.path.exists(outdir):
                 os.makedirs(outdir, exist_ok=True)
-                
+            
+            maxSize = str(maxSize)
             # Run script ../r_scripts/merge_samples.R with input (-i) of the RData paths
             # and output (-o) of the output directory desired, -s for sample ids,
             # and -e for sample names used in cellranger
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samplesSeuratRdata), "-o", outdir, "-s", ','.join(samplesIds), "-e", self.name, "-n", normalizationMethod]
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samplesSeuratRdata), "-o", outdir, "-s", ','.join(samplesIds), "-e", self.name, "-n", normalizationMethod, "-S", maxSize, "-I", integrateSamples]
             
             # If we are on a server with slurm, use the configuration file to send the jobs 
             if self.slurmPath != None:    
@@ -322,7 +326,6 @@ class Experiment:
                     return
             else:
                 subprocess.call(cmd)
-                
         self.mergeSamplesOutdir = outdir
 
     def setMergeSamplesOutdir(self, mergeSamplesOutdir):
@@ -723,7 +726,7 @@ class Experiment:
                 outdirNorm = os.path.join(outdir, "TEcountsNormalized")
                 # self.NormalizedOutdir
                 if mode == "merged":
-                    rdata = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
+                    rdata = os.path.join(self.mergeSamplesOutdir, (self.name + ".rds"))
 
                     if not os.path.exists("mergedSamplesNorm_scripts"):
                         os.makedirs("mergeSamplesNorm_scripts", exist_ok=True)
@@ -806,7 +809,7 @@ class Experiment:
                     os.makedirs(outdirPlots, exist_ok=True)
 
                 if mode == "merged":
-                    RDatas = os.path.join(self.mergeSamplesOutdir, (self.name + ".RData"))
+                    RDatas = os.path.join(self.mergeSamplesOutdir, (self.name + ".rds"))
                     mergedInput = os.path.join(indir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
                     
                     cmd = ["Rscript", os.path.join(cwd, "r_scripts/plot_TEexpression.R"), "-r", RDatas, "-t", TEsubfamilies, "-m", mode, "-n", self.name, "-i", mergedInput, "-o", outdirPlots]

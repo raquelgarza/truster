@@ -17,24 +17,25 @@ set.seed(10)
 # Path of TEcounts melted csv file (output from normalize_TEexpression.R)
 # Mode. Merged samples or individual? (merged/individual)
 # 
-# rdatas = c('/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA094/DA094.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA103/DA103.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/DA140/DA140.Rdata', '/Volumes/My\ Passport/FetalCortex/01.02.21/2_getClustersExclusive/Seq098_2/Seq098_2.Rdata')
-# tes_ids_file <- "/Volumes/My Passport/FetalCortex/16.01.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
-# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA094/TE_normalizedValues_melted.csv',
-#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA103/TE_normalizedValues_melted.csv',
-#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/DA140/TE_normalizedValues_melted.csv',
-#             '/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEcountsNormalized/Seq098_2/TE_normalizedValues_melted.csv')
-# outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/2_getClustersExclusive/clusterPipeline/TEplots/"
-# names <- c("DA094", "DA103", "DA140", "Seq098.2")
-# modes <- c("perSample", "perSample", "perSample", "perSample")
+rdatas = c('/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/DA094/DA094.Rdata', '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/DA103/DA103.Rdata', '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/DA140/DA140.Rdata', '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/Seq098_2/Seq098_2.Rdata')
+tes_ids_file <- "/Volumes/My Passport/FetalCortex/19.02.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
+inputs <- c('/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/DA094/TE_normalizedValues_melted.csv',
+            '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/DA103/TE_normalizedValues_melted.csv',
+            '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/DA140/TE_normalizedValues_melted.csv',
+            '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/Seq098_2/TE_normalizedValues_melted.csv')
+outdir <- "/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEplots/"
+names <- c("DA094", "DA103", "DA140", "Seq098.2")
+modes <- c("perSample", "perSample", "perSample", "perSample")
 
 # 
-# rdatas = c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/fetalcortex.RData')
-# tes_ids_file <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
-# inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
+# rdatas = c('/Volumes/My Passport/FetalCortex/19.02.21/3_mergeSamples/fetalcortexPerSample.RData')
+# tes_ids_file <- "/Volumes/My Passport/FetalCortex/19.02.21/3_mergeSamples/clusterPipeline/TEplots/tes_ids.txt"
+# inputs <- c('/Volumes/My Passport/FetalCortex/19.02.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/TE_normalizedValues_aggregatedByClusters_melted.csv')
 # # inputs <- c('/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEcountsNormalized/TE_rawValues_aggregatedByClusters_melted.csv')
-# outdir <- "/Volumes/My Passport/FetalCortex/01.02.21/3_mergeSamples/unfiltered/clusterPipeline/TEplots/"
+# outdir <- "/Volumes/My Passport/FetalCortex/19.02.21/3_mergeSamples/clusterPipeline/TEplots/"
 # names <- c("fetalCortex")
 # modes <- c("merged")
+
 # plot_TEexpression.R -r ../3_mergedSamples/gliomas.RData -m merged -n Gliomas -t L1HS:L1:LINE,L1PA2:L1:LINE,L1PA3:L1:LINE,L1PA4:L1:LINE,L1PA5:L1:LINE,L1PA6:L1:LINE,L1PA7:L1:LINE,L1PA8:L1:LINE -i /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEcountsNormalized -o /projects/fs5/raquelgg/Gliomas/Seq073_Seq091/3_mergedSamples/clusterPipeline/TEplots
 option_list = list(
   make_option(c("-r", "--RDatas"), type="character", default=NULL,
@@ -125,6 +126,7 @@ for(i in 1:length(names)){
 }
 
 te <- do.call(rbind, te)
+te$log2Value <- log2(te$value + 0.5)
 
 plots <- list()
 library(ggplot2)
@@ -145,7 +147,7 @@ for(j in 1:length(names(seurat.objs))){
     umap_te <- umap[which(umap$te_id == te_id),]
     plots[[paste(name, te_subfam, sep = '_')]] <- ggplot(umap_te, aes(x=UMAP_1, y=UMAP_2, colour=value)) + 
       geom_point(size=0.5) + theme_classic() + ggtitle(te_subfam) +
-      scale_color_gradient(low="lightgrey", high="red", limits=c(min(umap$value), max(umap$value)))
+      scale_color_gradient(low="lightgrey", high="red", limits=c(min(umap$value), max(umap$value))) + theme(text = element_text(size=14))
     
   }
   

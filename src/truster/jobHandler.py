@@ -72,16 +72,16 @@ def waitForJob(jobId):
 
 def checkExitCodes(fun, sampleId_clusterName, jobId, exitCode):
     if exitCode == 0:
-        return (Bcolors.OKGREEN + "Job " + jobId + " finished " + fun + " succesfully. " + sampleId_clusterName + Bcolors.ENDC + "\n")
+        return (Bcolors.OKGREEN + "Job " + str(jobId) + " finished " + fun + " succesfully. " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 1:
-        return (Bcolors.FAIL + "Job " + jobId + " was cancelled during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
+        return (Bcolors.FAIL + "Job " + str(jobId) + " was cancelled during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 2:
-        return (Bcolors.FAIL + "Job " + jobId + " failed during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
+        return (Bcolors.FAIL + "Job " + str(jobId) + " failed during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
     elif exitCode == 3:
-        return (Bcolors.FAIL + "Something strange happened to job " + jobId + " during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
+        return (Bcolors.FAIL + "Something strange happened to job " + str(jobId) + " during " + fun + ". " + sampleId_clusterName + Bcolors.ENDC + "\n")
 
 def genericError(fun, info):
     return Bcolors.FAIL + "Something went wrong creating the " + fun + " job for " + info + Bcolors.ENDC + "\n"
 
 def sucessSubmit(fun, info, jobId):
-    return Bcolors.OKBLUE + fun.capitalize() + " for " + info + " has been submitted and has job ID " + jobId + Bcolors.ENDC + "\n"
+    return Bcolors.OKBLUE + fun.capitalize() + " for " + info + " has been submitted and has job ID " + str(jobId) + Bcolors.ENDC + "\n"
