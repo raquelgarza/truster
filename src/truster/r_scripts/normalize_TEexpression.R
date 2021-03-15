@@ -15,10 +15,10 @@ set.seed(10)
 # 
 # 
 # mode = 'perSample'
-# obj_name = 'Seq098_2'
-# outdir = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcountsNormalized/Seq098_2/'
-# indir = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/clusterPipeline/TEcounts/Seq098_2/'
-# rdata = '/Volumes/My Passport/FetalCortex/19.02.21/2_getClusters/Seq098_2/Seq098_2.RData'
+# obj_name = 'Seq109_11'
+# outdir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/TEcountsNormalized/Seq109_11/'
+# indir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/TEcounts/Seq109_11/'
+# rdata = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_11/Seq109_11.rds'
 # # 
 # mode = 'merged'
 # obj_name = "ctrl"
@@ -29,8 +29,8 @@ set.seed(10)
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
               help="Merged samples or individual? (merged/individual)", metavar="character"),
-  make_option(c("-r", "--RData"), type="character", default=NULL,
-              help="Path to RData with Seurat object", metavar="character"),
+  make_option(c("-r", "--RDS"), type="character", default=NULL,
+              help="Path to RDS with Seurat object", metavar="character"),
   make_option(c("-n", "--name"), type="character", default=NULL,
               help="Sample id or name", metavar="character"),
   make_option(c("-i", "--indir"), type="character", default=NULL,
@@ -42,13 +42,13 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
-if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$RData) | is.null(opt$mode) ){
+if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$RDS) | is.null(opt$mode) ){
   print_help(opt_parser)
   stop("All argument must be supplied.", call.=FALSE)
 }
 
 mode <- trimws(opt$mode)
-rdata <- opt$RData
+rds <- opt$RDS
 obj_name <- opt$name
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))
@@ -58,16 +58,11 @@ if(!dir.exists(outdir)){
 }
 
 print(c("Mode: ", mode))
-print(c("RData to be used: ", rdata))
+print(c("RDS to be used: ", rds))
 print(c("Input path: ", indir))
 print(c("Output path: ", outdir))
 
-load(rdata)
-if(mode == 'merged'){
-  seurat.obj <- experiment
-}else{
-  seurat.obj <- sample
-}
+seurat.obj <- readRDS(rds)
 
 cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
 colnames(cluster_sizes) <- c('cluster', 'cluster.size')
@@ -105,8 +100,8 @@ for(i in 1:length(files)){
 rownames(TEcounts) <- TEcounts$TE
 rownames(coldata) <- coldata$name
 
-num_reads <- data.frame(id=names(colSums(TEcounts[,rownames(coldata)])),
-                        value=colSums(TEcounts[,rownames(coldata)]))
+num_reads <- data.frame(id=names(colSums(TEcounts[which(!startsWith(TEcounts$TE, "ENS")),rownames(coldata)])),
+                        value=colSums(TEcounts[which(!startsWith(TEcounts$TE, "ENS")),rownames(coldata)]))
 if(mode != "merged"){
   num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
   # If we are normalizing by seq depth per sample, we can aggregate per sample id

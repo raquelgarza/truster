@@ -173,7 +173,7 @@ class Sample:
                         
                         if exitCode == 0:
                             self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
-                            self.rdataPath = os.path.join(outdir, (self.sampleId + ".RData"))
+                            self.rdataPath = os.path.join(outdir, (self.sampleId + ".rds"))
                         return exitCode
                     except:
                         msg = genericError("getClusters", self.sampleId)
@@ -187,7 +187,7 @@ class Sample:
 
     def registerClustersFromPath(self, path):
         self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(path, j), self.logfile) for j in os.listdir(path) if j.endswith(".tsv")]
-        self.rdataPath = os.path.join(path, (self.sampleId + ".RData"))
+        self.rdataPath = os.path.join(path, (self.sampleId + ".rds"))
         msg = "Clusters from " + self.sampleId + " have been registered from " + path + ". Clusters: " + ', '.join([i.clusterName for i in self.clusters]) + "\n"
         return msg
 

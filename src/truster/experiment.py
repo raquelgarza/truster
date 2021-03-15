@@ -170,7 +170,10 @@ class Experiment:
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
-                    sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
+                    if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
+                        sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
+                    elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
+                        sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleName)
                     # args = [teGTF, geneGTF, sampleIndir]
                     # executor.submit(lambda p: sample.velocity(*p), args)
                     executor.submit(sample.velocity, teGTF, geneGTF, sampleIndir)
@@ -184,8 +187,12 @@ class Experiment:
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
-                    loom = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", (sample.sampleId + ".loom"))
-                    sampleOutdir = os.path.join(self.quantifyOutdir, sample.sampleId, "velocyto", "plots")
+                    if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
+                        sampleDir = os.path.join(self.quantifyOutdir, sample.sampleId)
+                    elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
+                        sampleDir = os.path.join(self.quantifyOutdir, sample.sampleName)
+                    loom = os.path.join(sampleDir, "velocyto", (sample.sampleId + ".loom"))
+                    sampleOutdir = os.path.join(sampleDir, "velocyto", "plots")
                     sampleIndir = os.path.join(indir, sample.sampleId)
                     executor.submit(sample.plotVelocity, loom, sampleIndir, sampleOutdir)
                 executor.shutdown(wait=True)
@@ -280,7 +287,7 @@ class Experiment:
     
                     # Wait for the job to finish and returns an exit code
                     exitCode = waitForJob(jobId)
-                
+                    print("Exit code: " + str(exitCode))
                     # Print if the job was finished succesfully or not
                     msg = checkExitCodes("mergeSamples", ("Experiment " + self.name), jobId, exitCode)
                     print(msg)
@@ -318,6 +325,7 @@ class Experiment:
                                 # print(self.mergeSamples[sampleId].clusters)
                                 self.mergeSamples[sampleId].clusters.append(cluster)
                         # print([j.clusters for j in self.mergeSamples.values()])
+                        self.mergeSamplesOutdir = outdir
                     return exitCode
                 except:
                     msg = genericError("mergeSamples", self.name)
@@ -326,7 +334,7 @@ class Experiment:
                     return
             else:
                 subprocess.call(cmd)
-        self.mergeSamplesOutdir = outdir
+                self.mergeSamplesOutdir = outdir
 
     def setMergeSamplesOutdir(self, mergeSamplesOutdir):
         self.mergeSamplesOutdir = mergeSamplesOutdir

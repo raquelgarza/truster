@@ -8,14 +8,19 @@ library(RColorBrewer)
 library(patchwork)
 set.seed(10)
 
-# paths <- c('/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_5/Seq073_5.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_6/Seq073_6.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_7/Seq073_7.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_8/Seq073_8.rds')
+# paths <- c('/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_11/Seq109_11.rds',
+#            '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_12/Seq109_12.rds',
+#            '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_13/Seq109_13.rds',
+#            '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_14/Seq109_14.rds',
+#            '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_6/Seq109_6.rds')
 # 
-# ids <- c("Seq073_5", "Seq073_6", "Seq073_7", "Seq073_8")
-# outpath <- "/Volumes/My Passport/Gliomas/04.03.21/3_mergeSamples/"
-# experiment_name <- "gliomas"
+# ids <- c("Seq109_11",
+#             "Seq109_12",
+#             "Seq109_13",
+#             "Seq109_14",
+#             "Seq109_6")
+# outpath <- "/Volumes/My Passport/TBI/12.03.21/3_mergeSamples/"
+# experiment_name <- "healthy"
 
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
@@ -74,8 +79,8 @@ if(integrate == TRUE){
 }
 
 # experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
-# experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000)
-# experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000)
+experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000)
+experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000)
 
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes)
@@ -110,6 +115,16 @@ for(i in 1:length(ids)){
   write.csv(embedding_origcellIds, file = paste(outpath, '/', id, "_cell_embeddings.csv", sep=''))
   write.csv(cluster_colours, file = paste(outpath, '/', id, "_clusters.csv", sep=''))
 }
+
+cluster_colours <- experiment[[c("original_cellIds", "seurat_clusters", "cluster_colours")]]
+write.csv(cluster_colours, file = paste(outpath, '/', experiment_name, "_clusters.csv", sep=''))
+
+embedding <- Embeddings(experiment, reduction = "umap")
+write.csv(embedding_origcellIds, file = paste(outpath, '/', experiment_name, "_embeddings.csv", sep=''))
+
+gene_expression <- FetchData(experiment, vars = rownames(experiment))
+write.csv(gene_expression, file = paste(outpath, '/', experiment_name, "_gene_counts.csv", sep=''))
+
 experiment[["original_cellIds"]] <- NULL
 experiment[["cluster_colours"]] <- NULL
 
