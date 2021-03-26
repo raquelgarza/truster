@@ -149,7 +149,7 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def mapCluster(self, sampleId, fastqdir, outdir, geneGTF, starIndex, RAM, slurm=None, modules=None):
+    def mapCluster(self, sampleId, fastqdir, outdir, geneGTF, starIndex, RAM, unique=False, slurm=None, modules=None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("mapCluster_scripts"):
@@ -157,8 +157,12 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
-                cmd = ["STAR", "--runThreadN", str(slurm["mapCluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(geneGTF), "--genomeDir", str(starIndex), "--outFileNamePrefix", (str(os.path.join(outdir, self.clusterName)) + "_") , "--outFilterMultimapNmax", "100", "--limitBAMsortRAM", str(RAM), "--winAnchorMultimapNmax", "200", "--readFilesIn", os.path.join(fastqdir, (self.clusterName + "_R2.fastq.gz"))]
-    
+                cmd = ["STAR", "--runThreadN", str(slurm["mapCluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(geneGTF), "--genomeDir", str(starIndex), "--outFileNamePrefix", (str(os.path.join(outdir, self.clusterName)) + "_") , "--limitBAMsortRAM", str(RAM)]
+                if unique:
+                    cmd.extend(["--outFilterMultimapNmax", "1", "--outFilterMismatchNoverLmax", "0.03"])
+                else:
+                    cmd.extend(["--outFilterMultimapNmax", "100", "--winAnchorMultimapNmax", "200"])
+                cmd.extend(["--readFilesIn", os.path.join(fastqdir, (self.clusterName + "_R2.fastq.gz"))])
                 if slurm != None:
                     cmd = ' '.join(cmd)
                     jobFile =  os.path.join("mapCluster_scripts/", (self.clusterName + "_mapCluster.sh"))
@@ -184,33 +188,40 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def TEcount(self, experimentName, sampleId, bam, outdir, geneGTF, teGTF, slurm=None, modules=None):
+    def TEcount(self, experimentName, sampleId, bam, outdir, geneGTF, teGTF, unique=False, slurm=None, modules=None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("TEcount_scripts"):
                     os.makedirs("TEcount_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
-    
-                cmd = ["TEcount", "-b", bam, "--GTF", geneGTF, "--TE", teGTF, "--format", "BAM", "--stranded", "yes", "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experimentName + "_" + self.clusterName + "_"))]
+                
+                if unique:
+                    cmd = ["featureCounts", "-s", str(1), "-F", "GTF", "-g", "transcript_id", "-a", teGTF, "-o", os.path.join(outdir, (experimentName + "_" + self.clusterName + "_uniqueMap.cntTable")), bam]
+                else:
+                    cmd = ["TEcount", "-b", bam, "--GTF", geneGTF, "--TE", teGTF, "--format", "BAM", "--stranded", "yes", "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experimentName + "_" + self.clusterName + "_"))]
     
                 if slurm != None:
                     cmd = ' '.join(cmd)
                     jobFile =  os.path.join("TEcount_scripts/", (self.clusterName + "_TEcount.sh"))
                     try:
-                        jobId = runJob("TEcount", jobFile, cmd, slurm, modules)
-                        msg = sucessSubmit("TEcount", (" sample " + sampleId + " cluster " +  self.clusterName), jobId)
+                        if unique:
+                            function_name = "TEcount_unique"
+                        else:
+                            function_name = "TEcount"
+                        jobId = runJob(function_name, jobFile, cmd, slurm, modules)
+                        msg = sucessSubmit(function_name, (" sample " + sampleId + " cluster " +  self.clusterName), jobId)
                         log.write(msg)
                         
                         exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("TEcount", ("Sample " + sampleId + ", cluster " + self.clusterName),jobId, exitCode)
+                        msg = checkExitCodes(function_name, ("Sample " + sampleId + ", cluster " + self.clusterName),jobId, exitCode)
                         log.write(msg)
                         
                         if exitCode == 0:
                             self.outdirs["TEcount"] = outdir
                         return (jobId, exitCode)
                     except:
-                        msg = genericError("TEcount", (" sample " + sampleId + " cluster " +  self.clusterName))
+                        msg = genericError(function_name, (" sample " + sampleId + " cluster " +  self.clusterName))
                         log.write(msg)
                         return
                 else:

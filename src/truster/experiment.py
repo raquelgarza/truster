@@ -627,7 +627,7 @@ class Experiment:
                     print(msg)
                     log.write(msg)
 
-    def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, jobs=1):
+    def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, unique=False, jobs=1):
         print("Running mapClusters with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
@@ -642,7 +642,7 @@ class Experiment:
                         for clusterNum, cluster in samplesDict.items():
                             fastqdir = os.path.join(outdir, "mergedClusters/")
                             mapOutdir = os.path.join(outdir, "mapCluster/")
-                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, "Merged", fastqdir, mapOutdir, geneGTF, starIndex, RAM, self.slurm, self.modules))
+                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, "Merged", fastqdir, mapOutdir, geneGTF, starIndex, RAM, unique, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
                         samplesDict = self.samples
@@ -652,7 +652,7 @@ class Experiment:
                                 for cluster in sample.clusters:
                                     fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
                                     outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                                    self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, self.slurm, self.modules))
+                                    self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, unique, self.slurm, self.modules))
                     else:
                         msg = "Please specify a mode (merged/perSample).\n"
                         print(msg)
@@ -675,7 +675,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
         
-    def TEcountsClusters(self, mode, outdir, geneGTF, teGTF, jobs=1):
+    def TEcountsClusters(self, mode, outdir, geneGTF, teGTF, unique=False, jobs=1):
         print("Running TEcounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
@@ -690,7 +690,7 @@ class Experiment:
                         for clusterNum, cluster in samplesDict.items():
                             bam = os.path.join(outdir, "mapCluster/", (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
                             outdir_sample = os.path.join(outdir, "TEcounts/")
-                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, "Merged", bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
+                            self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, "Merged", bam, outdir_sample, geneGTF, teGTF, unique, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
                         samplesDict = self.samples
@@ -700,7 +700,7 @@ class Experiment:
                                 for cluster in sample.clusters:
                                     bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
                                     outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
-                                    self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, self.slurm, self.modules))
+                                    self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, unique, self.slurm, self.modules))
                             
                     else:
                         msg = "Please specify a mode (merged/perSample).\n"
@@ -893,7 +893,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMergeClusters = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
+    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, unique=False, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMergeClusters = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -975,7 +975,7 @@ class Experiment:
                     current_instruction = "mapCluster"
                     msg = "mergeClusters finished! Moving on to " + current_instruction
                     log.write(msg)
-                    finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, jobs = jobs)
+                    finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, unique = unique, jobs = jobs)
                     if not finishedMapCluster:
                         msg = "Error in MapCluster"
                         print(msg)
@@ -990,7 +990,7 @@ class Experiment:
                     current_instruction = "TEcounts"
                     msg = "mapCluster finished! Moving on to " + current_instruction
                     log.write(msg)
-                    finishedTEcounts = self.TEcountsClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, teGTF = teGTF, jobs = jobs)
+                    finishedTEcounts = self.TEcountsClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, teGTF = teGTF, unique = unique, jobs = jobs)
                     if not finishedTEcounts:
                         msg = "Error in TEcounts"
                         print(msg)

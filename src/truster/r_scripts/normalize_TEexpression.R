@@ -16,8 +16,8 @@ set.seed(10)
 # 
 # mode = 'perSample'
 # obj_name = 'Seq109_11'
-# outdir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/TEcountsNormalized/Seq109_11/'
-# indir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/TEcounts/Seq109_11/'
+# outdir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/multi_TEcountsNormalized/Seq109_11/'
+# indir = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/clusterPipeline/multi_TEcounts/Seq109_11/'
 # rdata = '/Volumes/My Passport/TBI/12.03.21/2_getClusters/Seq109_11/Seq109_11.rds'
 # # 
 # mode = 'merged'
@@ -100,8 +100,8 @@ for(i in 1:length(files)){
 rownames(TEcounts) <- TEcounts$TE
 rownames(coldata) <- coldata$name
 
-num_reads <- data.frame(id=names(colSums(TEcounts[which(!startsWith(TEcounts$TE, "ENS")),rownames(coldata)])),
-                        value=colSums(TEcounts[which(!startsWith(TEcounts$TE, "ENS")),rownames(coldata)]))
+num_reads <- data.frame(id=names(colSums(TEcounts[which(startsWith(TEcounts$TE, "ENS")),rownames(coldata)])),
+                        value=colSums(TEcounts[which(startsWith(TEcounts$TE, "ENS")),rownames(coldata)]))
 if(mode != "merged"){
   num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
   # If we are normalizing by seq depth per sample, we can aggregate per sample id
