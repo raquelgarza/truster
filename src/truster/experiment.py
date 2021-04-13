@@ -744,8 +744,8 @@ class Experiment:
                 else:
                     subdirectory = "multiple"
 
-                indir = os.path.join(outdir, subdirectory, "TEcounts")
-                outdirNorm = os.path.join(outdir, subdirectory, "TEcountsNormalized")
+                indir = os.path.join(outdir, "TEcounts", subdirectory)
+                outdirNorm = os.path.join(outdir, "TEcountsNormalized", subdirectory)
                 # self.NormalizedOutdir
                 
                 if mode == "merged":
