@@ -149,7 +149,7 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def mapCluster(self, sampleId, fastqdir, outdir, geneGTF, starIndex, RAM, unique=False, slurm=None, modules=None):
+    def mapCluster(self, sampleId, fastqdir, outdir, geneGTF, starIndex, RAM, outTmpDir = None, unique=False, slurm=None, modules=None):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("mapCluster_scripts"):
@@ -162,6 +162,8 @@ class Cluster:
                     cmd.extend(["--outFilterMultimapNmax", "1", "--outFilterMismatchNoverLmax", "0.03"])
                 else:
                     cmd.extend(["--outFilterMultimapNmax", "100", "--winAnchorMultimapNmax", "200"])
+                if outTmpDir != None:
+                    cmd.extend(["--outTmpDir", outTmpDir])
                 cmd.extend(["--readFilesIn", os.path.join(fastqdir, (self.clusterName + "_R2.fastq.gz"))])
                 if slurm != None:
                     cmd = ' '.join(cmd)

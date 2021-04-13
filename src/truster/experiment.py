@@ -59,6 +59,8 @@ class Experiment:
             msg = "Sample " + sampleId + " unregistered.\n"
             log.write(msg)
 
+    # https://florimond.dev/blog/articles/2018/08/python-mutable-defaults-are-the-source-of-all-evil/
+    # Change indir = []
     def registerSamplesFromPath(self, indir=[], folderNamesAsSampleIds=True):
         if(folderNamesAsSampleIds):
             for i in indir:
@@ -78,29 +80,23 @@ class Experiment:
                     sampleIndir = os.path.join(sample.rawPath, sample.sampleId)
                     sampleOutdir = os.path.join(outdir, sample.sampleId)
                     executor.submit(sample.quantify, crIndex, sampleIndir, sampleOutdir)
-            self.quantifyOutdir = outdir
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
-    def setQuantificationOutdir(self, cellranger_outdir):
-        self.quantifyOutdir = cellranger_outdir
-        with open(self.logfile, "a") as log:
-            msg = "Quantification directory set to: " + cellranger_outdir + ".\n"
-            log.write(msg)
+    def setQuantificationOutdir(self, sampleId, cellranger_outdir):
+        self.samples[sampleId].setQuantificationOutdir(cellranger_outdir)
 
     def getClustersAllSamples(self, outdir, res = 0.5, percMitochondrial = None, minGenes = None, maxGenes = None, normalizationMethod = "LogNormalize", excludeFilesPath=None, maxSize = 500, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sample in list(self.samples.values()):
-                        if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
-                            sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
-                        elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
-                            sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleName)
+                        if os.path.isdir(sample.quantifyOutdir):
+                            sampleIndir = sample.quantifyOutdir
                         else:
-                            msg = "Error: File not found. Please make sure that " + self.quantifyOutdir + " contains a directory named as the sample ID or name. E.g. " + os.path.join(self.quantifyOutdir, sample.sampleName) + " or " + os.path.join(self.quantifyOutdir, sample.sampleId)
+                            msg = "Error: File not found. Please make sure that " + sample.quantifyOutdir + " exists.\n"
                             log.write(msg)
                             return 1
                         sampleOutdir = os.path.join(outdir, sample.sampleId)
@@ -170,10 +166,12 @@ class Experiment:
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
-                    if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
-                        sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleId)
-                    elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
-                        sampleIndir = os.path.join(self.quantifyOutdir, sample.sampleName)
+                    if os.path.isdir(sample.quantifyOutdir):
+                            sampleIndir = sample.quantifyOutdir
+                    else:
+                        msg = "Error: File not found. Please make sure that " + sample.quantifyOutdir + " exists.\n"
+                        log.write(msg)
+                        return 1
                     # args = [teGTF, geneGTF, sampleIndir]
                     # executor.submit(lambda p: sample.velocity(*p), args)
                     executor.submit(sample.velocity, teGTF, geneGTF, sampleIndir)
@@ -187,10 +185,12 @@ class Experiment:
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for sample in list(self.samples.values()):
-                    if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
-                        sampleDir = os.path.join(self.quantifyOutdir, sample.sampleId)
-                    elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
-                        sampleDir = os.path.join(self.quantifyOutdir, sample.sampleName)
+                    if os.path.isdir(sample.quantifyOutdir):
+                            sampleIndir = sample.quantifyOutdir
+                    else:
+                        msg = "Error: File not found. Please make sure that " + sample.quantifyOutdir + " exists.\n"
+                        log.write(msg)
+                        return 1
                     loom = os.path.join(sampleDir, "velocyto", (sample.sampleId + ".loom"))
                     sampleOutdir = os.path.join(sampleDir, "velocyto", "plots")
                     sampleIndir = os.path.join(indir, sample.sampleId)
@@ -386,12 +386,10 @@ class Experiment:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sampleId, sample in samplesDict.items():
                         for cluster in sample.clusters:
-                            if os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleId)):
-                                bam = os.path.join(self.quantifyOutdir, sample.sampleId, "outs/possorted_genome_bam.bam")
-                            elif os.path.isdir(os.path.join(self.quantifyOutdir, sample.sampleName)):
-                                bam = os.path.join(self.quantifyOutdir, sample.sampleName, "outs/possorted_genome_bam.bam")
+                            if os.path.isdir(sample.quantifyOutdir):
+                                bam = os.path.join(sample.quantifyOutdir, "outs/possorted_genome_bam.bam")
                             else:
-                                msg = "Error: File not found. Please make sure that " + self.quantifyOutdir + " contains a directory named as the sample ID or name. E.g. " + os.path.join(self.quantifyOutdir, sample.sampleName) + " or " + os.path.join(self.quantifyOutdir, sample.sampleId)
+                                msg = "Error: File not found. Please make sure that " + sample.quantifyOutdir + " exists.\n"
                                 log.write(msg)
                                 return 1
                             outdir_sample = os.path.join(outdir, "tsvToBam/", sampleId)
@@ -627,7 +625,7 @@ class Experiment:
                     print(msg)
                     log.write(msg)
 
-    def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, unique=False, jobs=1):
+    def mapClusters(self, mode, outdir, geneGTF, starIndex, RAM, outTmpDir=None, unique=False, jobs=1):
         print("Running mapClusters with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             try:
@@ -635,14 +633,18 @@ class Experiment:
                 msg = "Mapping clusters.\n"
                 log.write(msg)
 
+                if unique:
+                    subdirectory = "unique"
+                else:
+                    subdirectory = "multiple"
                 if mode == "merged":
                     samplesDict = self.mergeSamples
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                         for clusterNum, cluster in samplesDict.items():
                             fastqdir = os.path.join(outdir, "mergedClusters/")
-                            mapOutdir = os.path.join(outdir, "mapCluster/")
-                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, "Merged", fastqdir, mapOutdir, geneGTF, starIndex, RAM, unique, self.slurm, self.modules))
+                            mapOutdir = os.path.join(outdir, "mapCluster/", subdirectory)
+                            self.mapCluster_results.append(executor.submit(cluster.mapCluster, "Merged", fastqdir, mapOutdir, geneGTF, starIndex, RAM, outTmpDir, unique, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
                         samplesDict = self.samples
@@ -651,8 +653,8 @@ class Experiment:
                             for sampleId, sample in samplesDict.items():
                                 for cluster in sample.clusters:
                                     fastqdir = os.path.join(outdir, "concatenateLanes/", sampleId)
-                                    outdir_sample = os.path.join(outdir, "mapCluster/", sampleId)
-                                    self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, unique, self.slurm, self.modules))
+                                    outdir_sample = os.path.join(outdir, "mapCluster/", subdirectory, sampleId)
+                                    self.mapCluster_results.append(executor.submit(cluster.mapCluster, sampleId, fastqdir, outdir_sample, geneGTF, starIndex, RAM, outTmpDir, unique, self.slurm, self.modules))
                     else:
                         msg = "Please specify a mode (merged/perSample).\n"
                         print(msg)
@@ -682,14 +684,19 @@ class Experiment:
                 self.TEcounts_results = []
                 msg = "Quantifying TEs.\n"
                 log.write(msg)
+                
+                if unique:
+                    subdirectory = "unique"
+                else:
+                    subdirectory = "multiple"
 
                 if mode == "merged":
                     samplesDict = self.mergeSamples
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                         for clusterNum, cluster in samplesDict.items():
-                            bam = os.path.join(outdir, "mapCluster/", (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
-                            outdir_sample = os.path.join(outdir, "TEcounts/")
+                            bam = os.path.join(outdir, "mapCluster/", subdirectory, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
+                            outdir_sample = os.path.join(outdir, "TEcounts/", subdirectory)
                             self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, "Merged", bam, outdir_sample, geneGTF, teGTF, unique, self.slurm, self.modules))
                 else:
                     if mode == "perSample":
@@ -698,8 +705,8 @@ class Experiment:
                         with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                             for sampleId, sample in samplesDict.items():
                                 for cluster in sample.clusters:
-                                    bam = os.path.join(outdir, "mapCluster/", sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
-                                    outdir_sample = os.path.join(outdir, "TEcounts/", sampleId)
+                                    bam = os.path.join(outdir, "mapCluster/", subdirectory, sampleId, (cluster.clusterName + "_Aligned.sortedByCoord.out.bam"))
+                                    outdir_sample = os.path.join(outdir, "TEcounts/", subdirectory, sampleId)
                                     self.TEcounts_results.append(executor.submit(cluster.TEcount, self.name, sampleId, bam, outdir_sample, geneGTF, teGTF, unique, self.slurm, self.modules))
                             
                     else:
@@ -724,15 +731,23 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalizeTECounts(self, mode, outdir, jobs=1):
+    def normalizeTECounts(self, mode, outdir, unique=False, jobs=1):
         print("Running normalizeTECounts with " + str(jobs) + " jobs.\n")
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
             try:
-                indir = os.path.join(outdir, "TEcounts")
-                outdirNorm = os.path.join(outdir, "TEcountsNormalized")
+                if unique:
+                    msg = "\nSorry, normalization only available for multiple mapping.\n"
+                    log.write(msg)
+                    return False
+                else:
+                    subdirectory = "multiple"
+
+                indir = os.path.join(outdir, subdirectory, "TEcounts")
+                outdirNorm = os.path.join(outdir, subdirectory, "TEcountsNormalized")
                 # self.NormalizedOutdir
+                
                 if mode == "merged":
                     rdata = os.path.join(self.mergeSamplesOutdir, (self.name + ".rds"))
 
@@ -893,7 +908,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, unique=False, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMergeClusters = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
+    def processClusters(self, mode, outdir, geneGTF, teGTF, starIndex, RAM, outTmpDir = None, unique=False, jobs=1, finishedTsvToBam = False, finishedFilterUMIs = False, finishedBamToFastq = False, finishedConcatenateLanes = False, finishedMergeClusters = False, finishedMapCluster = False, finishedTEcounts = False, finishedNormalizeTEcounts = False):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -975,7 +990,7 @@ class Experiment:
                     current_instruction = "mapCluster"
                     msg = "mergeClusters finished! Moving on to " + current_instruction
                     log.write(msg)
-                    finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, unique = unique, jobs = jobs)
+                    finishedMapCluster = self.mapClusters(mode = mode, outdir = outdir, geneGTF = geneGTF, starIndex = starIndex, RAM = RAM, outTmpDir = outTmpDir, unique = unique, jobs = jobs)
                     if not finishedMapCluster:
                         msg = "Error in MapCluster"
                         print(msg)
@@ -1005,7 +1020,7 @@ class Experiment:
                     current_instruction = "normalizeTEcounts"
                     msg = "TEcounts finished! Moving on to " + current_instruction
                     log.write(msg)
-                    finishedNormalizeTEcounts = self.normalizeTECounts(mode = mode, outdir = outdir, jobs = jobs)
+                    finishedNormalizeTEcounts = self.normalizeTECounts(mode = mode, outdir = outdir, unique = unique, jobs = jobs)
                     if not finishedNormalizeTEcounts:
                         msg = "Error in normalizeTEcounts"
                         print(msg)

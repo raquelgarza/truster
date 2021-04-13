@@ -58,9 +58,16 @@ class Sample:
                 else:
                     # Run locally
                     subprocess.call(cmd)
+                self.quantifyOutdir = outdir
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
+
+    def setQuantificationOutdir(self, cellranger_outdir):
+        self.quantifyOutdir = cellranger_outdir
+        with open(self.logfile, "a") as log:
+            msg = "Quantification directory for sample" + self.sampleId + " is set to: " + cellranger_outdir + ".\n"
+            log.write(msg)
 
     def velocity(self, TE_gtf, geneGTF, indir):
         with open(self.logfile, "a") as log:
