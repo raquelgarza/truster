@@ -70,5 +70,5 @@ The user won't work directly with an object of type `Cluster`, but this class in
 
 One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of `Experiment` to call the needed functions in the class `Cluster` (See `tsvToBamClusters()`, `filterUMIsClusters()`, `bamToFastqClusters()`, `concatenateLanesClusters()`, `mergeClusters()`, `mapClusters()`, `TEcountsClusters()`, `normalizeTECounts()`).
 
-You can the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
+You can read the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
 

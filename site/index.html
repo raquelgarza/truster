@@ -62,7 +62,11 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#structure">Structure</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#functionality-and-workflow">Functionality and workflow</a>
     </li>
     </ul>
                     </li>
@@ -103,8 +107,8 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="truster-a-trusting-te-analysis">trusTEr - A trusting TE analysis</h1>
-<p>WARNING : If you are seeing this, this is a website under development. You probably are in the wrong place!</p>
+                <h1 id="truster-a-trusting-te-cluster-analysis">trusTEr - A trusting TE cluster analysis</h1>
+<p>WARNING : This is a website under development. You probably are in the wrong place!</p>
 <p>Version 0.1</p>
 <p>Takes fastq files from 10x single cell RNA sequencing, clusters cells using Seurat, and can be used to produce 
 read count matrices in a cluster level. You can also quantify reads per cluster having predefined clusters.</p>
@@ -125,10 +129,13 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 <p>The package has been tested in Unix systems only and supports only SLURM job submissions.</p>
 <h2 id="how-to-install">How to install</h2>
 <h4 id="just-the-modules">Just the modules</h4>
-<p>If you fulfill the requirements, you can simply install via pip:</p>
-<p><code>pip install truster</code></p>
+<p>If you fulfill the requirements, you can install via pip:
+<code>pip install truster</code></p>
 <h4 id="with-docker-container">With Docker container</h4>
 <h4 id="with-conda-environment">With conda environment</h4>
+<h2 id="introduction">Introduction</h2>
+<p>As single cell technologies haven't developed to the point where we can get the needed sequencing depth to study transposable elements expression, trusTEr seeks produce more reliable results by combining reads from closely related cells to gain information on a cell type level.</p>
+<p><img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/approach.png" width="700"></p>
 <h2 id="structure">Structure</h2>
 <p>trusTEr uses composition assiciation to relate three main classes: </p>
 <ul>
@@ -141,8 +148,19 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 <li>Name and ID required. </li>
 </ul>
 </li>
-<li>Cluster: Created by running <code>getClusters</code> or <code>mergeSamples</code> functions.</li>
+<li>Cluster: Created by running <code>getClusters()</code> or <code>mergeSamples()</code> functions (Or <code>setClustersOutdir()</code> or <code>setMergeSamplesOutdir()</code>).</li>
 </ul>
+<p><img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/compositionAssociation.png" width="500"></p>
+<h2 id="functionality-and-workflow">Functionality and workflow</h2>
+<p>This package is meant to be run with the following workflow:</p>
+<p><img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/workflow.png" width="470"></p>
+<p>Depending on the object type, you have access to different functions to go through these steps. </p>
+<p><code>Experiment</code> is the main object one would work with. Here you will <code>registerSample()</code> or <code>registerSamplesFromPath()</code>. </p>
+<p>An object of type <code>Sample</code> has access to step 7 and some handy wrappers to use <code>cellRanger</code>, perform clustering with Seurat and run and plot RNA velocity. These functions can be called for all registered samples from your object of type <code>Experiment</code> (See <code>quantify()</code>, <code>getClustersAllSamples()</code>, <code>velocityAllSamples()</code>, <code>plotVelocityAllSamples()</code>).</p>
+<p>The need for the class <code>Experiment</code> is clearer once the user wants to merge samples (See <code>mergeSamples()</code>) or to run the same workflow for all the samples' clusters.</p>
+<p>The user won't work directly with an object of type <code>Cluster</code>, but this class includes all the functions needed to go through steps 1-6 of the workflow. Instead of running this pipeline individually for each cluster, one can run the workflow for each cluster of each registered sample using the <code>Experiment</code> function <code>processClusters(mode = "perSample", ...)</code>.</p>
+<p>One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of <code>Experiment</code> to call the needed functions in the class <code>Cluster</code> (See <code>tsvToBamClusters()</code>, <code>filterUMIsClusters()</code>, <code>bamToFastqClusters()</code>, <code>concatenateLanesClusters()</code>, <code>mergeClusters()</code>, <code>mapClusters()</code>, <code>TEcountsClusters()</code>, <code>normalizeTECounts()</code>).</p>
+<p>You can read the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/</p>
               
             </div>
           </div>
@@ -196,5 +214,5 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-15 13:18:35.004153+00:00
+Build Date UTC : 2021-04-16 17:21:28.077640+00:00
 -->

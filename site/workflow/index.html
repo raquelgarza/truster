@@ -180,11 +180,11 @@ example.quantify(crIndex, outdir)
 example.getClustersAllSamples(clusters_dir)
 </code></pre>
 <p>This will create the <code>clusters_dir</code> and a subfolder per sample (named with the <code>sampleIds</code>). Each of these subfoldes will contain a tsv file per cluster found on the sample. The tsv files contain the cells barcodes that form that cluster.</p>
-<p>You will also get an RData file in the output directory with the Seurat object of each of your samples.</p>
+<p>You will also get an rds file in the output directory with the Seurat object of each of your samples.</p>
 <p>If you already have a clustering of your preference, please produce the required tsv files and set the clusters directory as:</p>
-<pre><code>example.setProcessClustersOutdir(processClustersOutdir = outdir)
+<pre><code>example.setClustersOutdir(processClustersOutdir = outdir)
 </code></pre>
-<p>We could add a function in the near future that takes RData with a Seurat object and produces the tsv files in the file structure we need it. </p>
+<p>We could add a function in the near future that takes rds with a Seurat object and produces the tsv files in the file structure we need it. </p>
 <h4 id="merged-samples">Merged samples</h4>
 <p>In some experiments, such as this one where the samples are from the same tissue, it's interesting to combine the samples and get a merged clustering. This can be achieved as</p>
 <pre><code>mergedsamples_dir = 'wherever/you/want/the/output'
@@ -193,7 +193,7 @@ example.mergeSamples(mergedsamples_dir)
 <p>Similarly to the clusters per sample, if you already have a clustering you want to use, you could set the directory where you contain the tsv files with the cell barcodes as </p>
 <pre><code>example.setMergeSamplesOutdir(outdir)
 </code></pre>
-<p>If you are going to do this for the merged clustering, we ask you to name your tsv files as <code>[sampleId]_merged.clusters_[cluster number].tsv</code></p>
+<p>If you are going to merge the Seurat objects yourself, we ask you to name the merged tsv files as <code>[sampleId]_merged.clusters_[cluster number].tsv</code></p>
 <p><br/></p>
 <h2 id="transposon-expression">Transposon expression</h2>
 <p>Once we have the cellranger output, and the clusters that we want to check for transposon expression, we can go ahead and run trusTEr as a pipeline or step by step. </p>
@@ -203,6 +203,7 @@ example.mergeSamples(mergedsamples_dir)
 <li>Filter for unique UMIs</li>
 <li>Convert bam to fastq files</li>
 <li>Concatenate lanes from the step #3 output</li>
+<li>Merge samples in one cluster</li>
 <li>Map fastq files</li>
 <li>TE quantification</li>
 <li>TE quantification normalization</li>
@@ -215,7 +216,11 @@ gene_gtf = 'path/to/gene.gtf'
 te_gtf = 'path/to/te.gtf'
 star_index = 'path/to/star/index'
 
-example.processClusters(mode = &quot;merged&quot;, outdir = output, geneGTF = gene_gtf, teGTF = te_gtf, starIndex = star_index)
+example.processClusters(mode = &quot;merged&quot;,
+                        outdir = output, 
+                        geneGTF = gene_gtf, 
+                        teGTF = te_gtf, 
+                        starIndex = star_index)
 </code></pre>
 <h4 id="step-by-step">Step by step</h4>
 <p>If you want to wait a bit and check the output of each step of the pipeline, you an of course run it step by step.</p>
@@ -260,8 +265,8 @@ example.TEcountsClusters(&quot;merged&quot;, outdir = output, geneGTF = gene_gtf
 </code></pre>
 <p>The output directory now contains a subdirectory called <code>TEcounts/</code> with samples' subdirectories and each of their clusters TE counts.</p>
 <h5 id="7-te-counts-normalization">7) TE counts normalization</h5>
-<p>Before continuing with the downstream analysis, we need to normalize for each of the samples' sequencing depth and the clusters size. </p>
-<pre><code>some code i havent written
+<p>Before continuing with the downstream analysis, we need to normalize for samples' sequencing depth and cluster size. We can do this for all samples using</p>
+<pre><code>example.normalizeTECounts(&quot;merged&quot;)
 </code></pre>
 <p>And that's it! You can now see your final count matrix at the output directory and if you want you can use our plot_TEexpression.R script to plot a UMAP with TE subfamilies expression. </p>
 <hr />

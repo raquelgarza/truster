@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: truster
-Version: 0.1
+Version: 0.1.1
 Summary: Analyse transposons expression in single cell data.
 Home-page: https://github.com/ra7555ga-s/trusTEr
 Author: Raquel Garza
@@ -78,7 +78,7 @@ Description: # trusTEr - A trusting TE cluster analysis
         
         One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of `Experiment` to call the needed functions in the class `Cluster` (See `tsvToBamClusters()`, `filterUMIsClusters()`, `bamToFastqClusters()`, `concatenateLanesClusters()`, `mergeClusters()`, `mapClusters()`, `TEcountsClusters()`, `normalizeTECounts()`).
         
-        You can the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
+        You can read the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
         
         
 Platform: UNKNOWN
