@@ -25,8 +25,8 @@ class Sample:
     def quantify(self, crIndex, indir, outdir):
         with open(self.logfile, "a") as log:
             try:
-                if not os.path.exists("counts_scripts/"):
-                    os.makedirs("counts_scripts", exist_ok=True)
+                if not os.path.exists("quantify_scripts/"):
+                    os.makedirs("quantify_scripts", exist_ok=True)
     
                 cmd = ["cellranger count", "--id", self.sampleId, "--transcriptome", crIndex, "--fastqs", indir]
                 # If the experiment has a cluster configuration file
@@ -34,16 +34,16 @@ class Sample:
     
                     cmd = ' '.join([cmd[0], '='.join(cmd[1:3]), '='.join(cmd[3:5]), '='.join(cmd[5:7])])
     
-                    jobFile =  os.path.join("counts_scripts/", (self.sampleId + "_counts.sh"))
+                    jobFile =  os.path.join("quantify_scripts/", (self.sampleId + "_quantify.sh"))
                     try:
                         # Run a job using runJob from the module which returns a job id
-                        jobId = runJob("counts", jobFile, cmd, self.slurm, self.modules)
-                        # The latest (or only) "counts" job ran for this sample.
+                        jobId = runJob("quantify", jobFile, cmd, self.slurm, self.modules)
+                        # The latest (or only) "quantify" job ran for this sample.
                         # Without this one being completed other functions might not be able to run.
-                        msg = sucessSubmit("counts", self.sampleId, jobId)
+                        msg = sucessSubmit("quantify", self.sampleId, jobId)
                         log.write(msg)
                         exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("counts", ("Sample " + self.sampleId),jobId, exitCode)
+                        msg = checkExitCodes("quantify", ("Sample " + self.sampleId),jobId, exitCode)
                         log.write(msg)
 
                         if exitCode == 0:
@@ -52,7 +52,7 @@ class Sample:
                         return exitCode
                     except:
                         # If the job couldnt be created but there is a cluster configuration file...
-                        msg = genericError("counts", self.sampleId)
+                        msg = genericError("quantify", self.sampleId)
                         log.write(msg)
                         return
                 else:
