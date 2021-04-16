@@ -1,4 +1,4 @@
-# trusTEr - A trusting TE analysis
+# trusTEr - A trusting TE cluster analysis
 WARNING : This is a website under development. You probably are in the wrong place!
 
 Version 0.1
