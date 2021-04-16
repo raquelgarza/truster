@@ -35,7 +35,9 @@ If you fulfill the requirements, you can simply install via pip:
 
 ## Introduction
 
+As single cell technologies haven't developed to the point where we can get the needed sequencing depth to study transposable elements expression, trusTEr seeks produce more reliable results by combining reads from closely related cells to gain information on a cell type level.
 
+<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/approach.png" width="700">
 
 ## Structure
 
@@ -48,13 +50,13 @@ trusTEr uses composition assiciation to relate three main classes:
     * Name and ID required. 
 * Cluster: Created by running `getClusters()` or `mergeSamples()` functions (Or `setClustersOutdir()` or `setMergeSamplesOutdir()`).
 
-![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/compositionAssociation.png?raw=True)
+<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/compositionAssociation.png" width="500">
 
 ## Functionality and workflow
 
 This package is meant to be run with the following workflow:
 
-![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/workflow.png?raw=True)
+<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/workflow.png" width="470">
 
 Depending on the object type, you have access to different functions to go through these steps. 
 
@@ -68,6 +70,5 @@ The user won't work directly with an object of type `Cluster`, but this class in
 
 One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of `Experiment` to call the needed functions in the class `Cluster` (See `tsvToBamClusters()`, `filterUMIsClusters()`, `bamToFastqClusters()`, `concatenateLanesClusters()`, `mergeClusters()`, `mapClusters()`, `TEcountsClusters()`, `normalizeTECounts()`).
 
-
-
+You can the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
 
