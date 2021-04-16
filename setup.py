@@ -15,7 +15,7 @@ setuptools.setup(
 	author_email = "raquelgarza95@gmail.com",
 	description = "Analyse transposons expression in single cell data.",
 	long_description = long_description,
-	long_description_content_type = "text/markdown",
+	long_description_content_type = "docs/index.md",
 	url="https://github.com/ra7555ga-s/trusTEr",
 	
 	classifiers = ["Topic :: Scientific/Engineering :: Bio-Informatics"])
