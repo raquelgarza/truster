@@ -48,13 +48,13 @@ trusTEr uses composition assiciation to relate three main classes:
     * Name and ID required. 
 * Cluster: Created by running `getClusters()` or `mergeSamples()` functions (Or `setClustersOutdir()` or `setMergeSamplesOutdir()`).
 
-![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/compositionAssociation.png?raw=True)
+![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/compositionAssociation.png?raw=True?=50)
 
 ## Functionality and workflow
 
 This package is meant to be run with the following workflow:
 
-![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/workflow.png?raw=True)
+![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/workflow.png?raw=True?=50)
 
 Depending on the object type, you have access to different functions to go through these steps. 
 
