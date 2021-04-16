@@ -1,8 +1,6 @@
 import setuptools 
 
 with open("README.md", "r") as readme:
-	long_description = readme.read()
-
 setuptools.setup(
 	name = "truster",
 	version = "0.1",
@@ -14,8 +12,8 @@ setuptools.setup(
 	author = "Raquel Garza",
 	author_email = "raquelgarza95@gmail.com",
 	description = "Analyse transposons expression in single cell data.",
-	long_description = long_description,
-	long_description_content_type = "docs/index.md",
+	long_description = file: README.md,
+	long_description_content_type = text/markdown,
 	url="https://github.com/ra7555ga-s/trusTEr",
 	
 	classifiers = ["Topic :: Scientific/Engineering :: Bio-Informatics"])
