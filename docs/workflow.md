@@ -80,7 +80,7 @@ example.getClustersAllSamples(clusters_dir)
 
 This will create the `clusters_dir` and a subfolder per sample (named with the `sampleIds`). Each of these subfoldes will contain a tsv file per cluster found on the sample. The tsv files contain the cells barcodes that form that cluster.
 
-You will also get an RData file in the output directory with the Seurat object of each of your samples.
+You will also get an rds file in the output directory with the Seurat object of each of your samples.
 
 If you already have a clustering of your preference, please produce the required tsv files and set the clusters directory as:
 
@@ -88,7 +88,7 @@ If you already have a clustering of your preference, please produce the required
 example.setClustersOutdir(processClustersOutdir = outdir)
 ```
 
-We could add a function in the near future that takes RData with a Seurat object and produces the tsv files in the file structure we need it. 
+We could add a function in the near future that takes rds with a Seurat object and produces the tsv files in the file structure we need it. 
 
 #### Merged samples
 In some experiments, such as this one where the samples are from the same tissue, it's interesting to combine the samples and get a merged clustering. This can be achieved as
@@ -104,7 +104,7 @@ Similarly to the clusters per sample, if you already have a clustering you want 
 example.setMergeSamplesOutdir(outdir)
 ```
 
-If you are going to do this for the merged clustering, we ask you to name your tsv files as `[sampleId]_merged.clusters_[cluster number].tsv`
+If you are going to merge the Seurat objects yourself, we ask you to name the merged tsv files as `[sampleId]_merged.clusters_[cluster number].tsv`
 
 <br/>
 ## Transposon expression
@@ -116,6 +116,7 @@ This part is a set of seven steps:
 2. Filter for unique UMIs
 3. Convert bam to fastq files
 4. Concatenate lanes from the step #3 output
+5. Merge samples in one cluster
 5. Map fastq files
 6. TE quantification
 7. TE quantification normalization
