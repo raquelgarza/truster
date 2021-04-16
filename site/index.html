@@ -50,6 +50,8 @@
                 <ul class="current">
                     <li class="toctree-l1 current"><a class="reference internal current" href=".">Introduction</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#version-011-written-in-python-366">Version 0.1.1, written in Python 3.6.6</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#how-to-install">How to install</a>
@@ -67,6 +69,14 @@
     <li class="toctree-l2"><a class="reference internal" href="#structure">Structure</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#functionality-and-workflow">Functionality and workflow</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-on-a-server">Running on a server</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-slurmpath">1. slurmPath</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-modulespath">2. modulesPath</a>
+    </li>
+        </ul>
     </li>
     </ul>
                     </li>
@@ -108,8 +118,7 @@
             <div class="section">
               
                 <h1 id="truster-a-trusting-te-cluster-analysis">trusTEr - A trusting TE cluster analysis</h1>
-<p>WARNING : This is a website under development. You probably are in the wrong place!</p>
-<p>Version 0.1</p>
+<h6 id="version-011-written-in-python-366">Version 0.1.1, written in Python 3.6.6</h6>
 <p>Takes fastq files from 10x single cell RNA sequencing, clusters cells using Seurat, and can be used to produce 
 read count matrices in a cluster level. You can also quantify reads per cluster having predefined clusters.</p>
 <h2 id="requirements">Requirements</h2>
@@ -160,7 +169,88 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 <p>The need for the class <code>Experiment</code> is clearer once the user wants to merge samples (See <code>mergeSamples()</code>) or to run the same workflow for all the samples' clusters.</p>
 <p>The user won't work directly with an object of type <code>Cluster</code>, but this class includes all the functions needed to go through steps 1-6 of the workflow. Instead of running this pipeline individually for each cluster, one can run the workflow for each cluster of each registered sample using the <code>Experiment</code> function <code>processClusters(mode = "perSample", ...)</code>.</p>
 <p>One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of <code>Experiment</code> to call the needed functions in the class <code>Cluster</code> (See <code>tsvToBamClusters()</code>, <code>filterUMIsClusters()</code>, <code>bamToFastqClusters()</code>, <code>concatenateLanesClusters()</code>, <code>mergeClusters()</code>, <code>mapClusters()</code>, <code>TEcountsClusters()</code>, <code>normalizeTECounts()</code>).</p>
-<p>You can read the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/</p>
+<h2 id="running-on-a-server">Running on a server</h2>
+<p>At the moment of construction of an <code>Experiment</code> object, you can declare <code>slurmPath</code> and a <code>modulePath</code>. These files will be checked whenever a function can be run as an <code>sbatch</code> job.</p>
+<p>For the moment, trusTEr only works with <code>slurm</code> systems. You need to create two json files:</p>
+<h5 id="1-slurmpath">1. slurmPath</h5>
+<p>Declaring the <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> per function. You need to declare a field per function listed that you will use:</p>
+<ul>
+<li>quantify</li>
+<li>getClusters</li>
+<li>mergedClusters</li>
+<li>tsvToBam</li>
+<li>filterUMIs</li>
+<li>bamToFastq</li>
+<li>mapCluster</li>
+<li>TEcount</li>
+<li>velocity</li>
+</ul>
+<p>As a brief example:</p>
+<pre><code>{
+  &quot;__default__&quot; :
+  {
+      &quot;account&quot; : &quot;myaccount&quot;,
+      &quot;time&quot; : &quot;00:15:00&quot;,
+      &quot;nodes&quot; : 1,
+      &quot;partition&quot; : &quot;dell&quot;,
+      &quot;output&quot; : &quot;%j.out&quot;,
+      &quot;error&quot; : &quot;%j.err&quot;,
+      &quot;job-name&quot; : &quot;%j&quot;
+  },
+  &quot;quantify&quot; :
+  {
+      &quot;account&quot; : &quot;myaccount&quot;,
+      &quot;time&quot; : &quot;10:00:00&quot;,
+      &quot;nodes&quot; : 1,
+      &quot;tasks-per-node&quot; : 20,
+      &quot;partition&quot; : &quot;dell&quot;,
+      &quot;output&quot; : &quot;%j.quantify.out&quot;,
+      &quot;error&quot; : &quot;%j.quantify.err&quot;,
+      &quot;job-name&quot; : &quot;%j.quantify&quot;
+  },
+  &quot;getClusters&quot; : {...},
+  &quot;mergeSamples&quot; : {...},
+  &quot;tsvToBam&quot; : {...},  
+  &quot;filterUMIs&quot; : {...},
+  &quot;bamToFastq&quot; : {...},
+  &quot;mapCluster&quot; : {...},
+  &quot;TEcount&quot; : {...},
+  &quot;velocity&quot; : {...}
+}
+</code></pre>
+<h5 id="2-modulespath">2. modulesPath</h5>
+<p>In a <code>slurm</code> system, many times you need to load modules for a software to be available. In this json file you declare the name of the needed modules. You need to declare a field per function listed that you will use:</p>
+<ul>
+<li>quantify</li>
+<li>getClusters</li>
+<li>mergedClusters</li>
+<li>tsvToBam</li>
+<li>filterUMIs</li>
+<li>bamToFastq</li>
+<li>mapCluster</li>
+<li>TEcount</li>
+<li>velocity</li>
+<li>normalizeTEcounts</li>
+<li>plotTEexpression</li>
+</ul>
+<p>As an example:</p>
+<pre><code>{
+        &quot;quantify&quot;:[&quot;cellranger/3.1.0&quot;],
+        &quot;velocity&quot;:[&quot;GCC/7.3.0-2.30&quot;, &quot;SAMtools/1.9&quot;, &quot;velocyto/0.17.17&quot;],
+        &quot;getClusters&quot;:[&quot;GCC/9.3.0&quot;, &quot;OpenMPI/4.0.3&quot;, &quot;Seurat/3.1.5-R-4.0.0&quot;],
+        &quot;mergeSamples&quot;:[&quot;GCC/9.3.0&quot;, &quot;OpenMPI/4.0.3&quot;, &quot;Seurat/3.1.5-R-4.0.0&quot;],
+        &quot;tsvToBam&quot;:[&quot;subset-bam/1.0&quot;],
+        &quot;filterUMIs&quot;:[&quot;GCC/7.3.0-2.30&quot;,  &quot;OpenMPI/3.1.1&quot;, &quot;Pysam/0.15.1-Python-3.6.6&quot;],
+        &quot;bamToFastq&quot;:[&quot;bamtofastq/1.2.0&quot;],
+        &quot;mapCluster&quot;:[&quot;GCC/5.4.0-2.26&quot;, &quot;OpenMPI/1.10.3&quot;, &quot;STAR/2.6.0c&quot;],
+        &quot;TEcount&quot;:[&quot;icc/2018.1.163-GCC-6.4.0-2.28&quot;, &quot;OpenMPI/2.1.2&quot;, &quot;TEToolkit/2.0.3-Python-2.7.14&quot;],
+        &quot;normalizeTEcounts&quot;:[&quot;GCC/9.3.0&quot;, &quot;OpenMPI/4.0.3&quot;, &quot;Seurat/3.1.5-R-4.0.0&quot;],
+        &quot;plotTEexpression&quot;:[&quot;GCC/9.3.0&quot;, &quot;OpenMPI/4.0.3&quot;, &quot;Seurat/3.1.5-R-4.0.0&quot;]
+}
+</code></pre>
+<p>If you don't need to load any modules for a software to be available, you can leave the respective list empty.</p>
+<hr />
+<p>You can read the functions' documentation and some tutorials at https://ra7555ga-s.github.io/truster/</p>
               
             </div>
           </div>
@@ -214,5 +304,5 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-04-16 17:22:48.844354+00:00
+Build Date UTC : 2021-04-16 18:14:59.248571+00:00
 -->

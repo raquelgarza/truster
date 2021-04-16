@@ -7,9 +7,7 @@ Author: Raquel Garza
 Author-email: raquelgarza95@gmail.com
 License: UNKNOWN
 Description: # trusTEr - A trusting TE cluster analysis
-        WARNING : This is a website under development. You probably are in the wrong place!
-        
-        Version 0.1
+        ###### Version 0.1.1, written in Python 3.6.6
         
         Takes fastq files from 10x single cell RNA sequencing, clusters cells using Seurat, and can be used to produce 
         read count matrices in a cluster level. You can also quantify reads per cluster having predefined clusters.
@@ -78,7 +76,97 @@ Description: # trusTEr - A trusting TE cluster analysis
         
         One can also partition the workflow and run step by step in all registered samples or in a combined clustering using the transitioning functions of `Experiment` to call the needed functions in the class `Cluster` (See `tsvToBamClusters()`, `filterUMIsClusters()`, `bamToFastqClusters()`, `concatenateLanesClusters()`, `mergeClusters()`, `mapClusters()`, `TEcountsClusters()`, `normalizeTECounts()`).
         
-        You can read the functions documentation and tutorials at https://ra7555ga-s.github.io/truster/
+        ## Running on a server
+        
+        At the moment of construction of an `Experiment` object, you can declare `slurmPath` and a `modulePath`. These files will be checked whenever a function can be run as an `sbatch` job.
+        
+        For the moment, trusTEr only works with `slurm` systems. You need to create two json files:
+        
+        ##### 1. slurmPath
+        Declaring the <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> per function. You need to declare a field per function listed that you will use:
+        
+        * quantify
+        * getClusters
+        * mergedClusters
+        * tsvToBam
+        * filterUMIs
+        * bamToFastq
+        * mapCluster
+        * TEcount
+        * velocity
+        
+        As a brief example:
+        ```
+        {
+          "__default__" :
+          {
+              "account" : "myaccount",
+              "time" : "00:15:00",
+              "nodes" : 1,
+              "partition" : "dell",
+              "output" : "%j.out",
+              "error" : "%j.err",
+              "job-name" : "%j"
+          },
+          "quantify" :
+          {
+              "account" : "myaccount",
+              "time" : "10:00:00",
+              "nodes" : 1,
+              "tasks-per-node" : 20,
+              "partition" : "dell",
+              "output" : "%j.quantify.out",
+              "error" : "%j.quantify.err",
+              "job-name" : "%j.quantify"
+          },
+          "getClusters" : {...},
+          "mergeSamples" : {...},
+          "tsvToBam" : {...},  
+          "filterUMIs" : {...},
+          "bamToFastq" : {...},
+          "mapCluster" : {...},
+          "TEcount" : {...},
+          "velocity" : {...}
+        }
+        ```
+        ##### 2. modulesPath
+        
+        In a `slurm` system, many times you need to load modules for a software to be available. In this json file you declare the name of the needed modules. You need to declare a field per function listed that you will use:
+        
+        * quantify
+        * getClusters
+        * mergedClusters
+        * tsvToBam
+        * filterUMIs
+        * bamToFastq
+        * mapCluster
+        * TEcount
+        * velocity
+        * normalizeTEcounts
+        * plotTEexpression
+        
+        As an example:
+        
+        ```
+        {
+                "quantify":["cellranger/3.1.0"],
+                "velocity":["GCC/7.3.0-2.30", "SAMtools/1.9", "velocyto/0.17.17"],
+                "getClusters":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"],
+                "mergeSamples":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"],
+                "tsvToBam":["subset-bam/1.0"],
+                "filterUMIs":["GCC/7.3.0-2.30",  "OpenMPI/3.1.1", "Pysam/0.15.1-Python-3.6.6"],
+                "bamToFastq":["bamtofastq/1.2.0"],
+                "mapCluster":["GCC/5.4.0-2.26", "OpenMPI/1.10.3", "STAR/2.6.0c"],
+                "TEcount":["icc/2018.1.163-GCC-6.4.0-2.28", "OpenMPI/2.1.2", "TEToolkit/2.0.3-Python-2.7.14"],
+                "normalizeTEcounts":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"],
+                "plotTEexpression":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"]
+        }
+        ```
+        
+        If you don't need to load any modules for a software to be available, you can leave the respective list empty.
+        
+        ---
+        You can read the functions' documentation and some tutorials at https://ra7555ga-s.github.io/truster/
         
         
 Platform: UNKNOWN

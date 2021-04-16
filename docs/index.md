@@ -1,5 +1,5 @@
 # trusTEr - A trusting TE cluster analysis
-###### Version 0.1.1, written in Python 3.6.6
+**Version 0.1.1, written in Python 3.6.6**
 
 Takes fastq files from 10x single cell RNA sequencing, clusters cells using Seurat, and can be used to produce 
 read count matrices in a cluster level. You can also quantify reads per cluster having predefined clusters.
@@ -74,7 +74,7 @@ At the moment of construction of an `Experiment` object, you can declare `slurmP
 
 For the moment, trusTEr only works with `slurm` systems. You need to create two json files:
 
-##### 1. slurmPath
+**1. slurmPath**
 Declaring the <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> per function. You need to declare a field per function listed that you will use:
 
 * quantify
@@ -121,7 +121,7 @@ As a brief example:
   "velocity" : {...}
 }
 ```
-##### 2. modulesPath
+**2. modulesPath**
 
 In a `slurm` system, many times you need to load modules for a software to be available. In this json file you declare the name of the needed modules. You need to declare a field per function listed that you will use:
 
