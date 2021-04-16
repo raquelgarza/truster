@@ -54,7 +54,7 @@ trusTEr uses composition assiciation to relate three main classes:
 
 This package is meant to be run with the following workflow:
 
-![alt text](https://github.com/ra7555ga-s/truster/blob/main/img/workflow.png?raw=True?=50)
+<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/workflow.png" width="500">
 
 Depending on the object type, you have access to different functions to go through these steps. 
 
