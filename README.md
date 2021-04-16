@@ -25,7 +25,7 @@ The package has been tested in Unix systems only and supports only SLURM job sub
 
 ## How to install 
 #### Just the modules
-If you fulfill the requirements, you can simply install via pip:
+If you fulfill the requirements, you can install via pip:
 `pip install truster`
 
 #### With Docker container
