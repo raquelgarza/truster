@@ -37,7 +37,7 @@ If you fulfill the requirements, you can simply install via pip:
 
 As single cell technologies haven't developed to the point where we can get the needed sequencing depth to study transposable elements expression, trusTEr seeks produce more reliable results by combining reads from closely related cells to gain information on a cell type level.
 
-<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/approach.png" width="500">
+<img src="https://raw.githubusercontent.com/ra7555ga-s/truster/main/img/approach.png" width="700">
 
 ## Structure
 
