@@ -11,98 +11,95 @@ from .bcolors import Bcolors
 
 class Sample:
 
-    def __init__(self, slurm, modules, logfile, sampleId="", sampleName="", rawPath = ""):
+    def __init__(self, slurm, modules, logfile, sample_id="", sample_name="", raw_path = ""):
         self.slurm = slurm
         self.modules = modules
-        self.sampleId = sampleId
-        self.sampleName = sampleName
-        self.rawPath = rawPath
+        self.sample_id = sample_id
+        self.sample_name = sample_name
+        self.raw_path = raw_path
         self.logfile = logfile
-        # with open(self.logfile, "a") as log:
-        #     msg = "Sample " + sampleId + " created\n"
-        #     log.write(msg)
 
-    def quantify(self, crIndex, indir, outdir):
+    def quantify(self, cr_index, indir, outdir):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("quantify_scripts/"):
                     os.makedirs("quantify_scripts", exist_ok=True)
     
-                cmd = ["cellranger count", "--id", self.sampleId, "--transcriptome", crIndex, "--fastqs", indir]
+                cmd = ["cellranger count", "--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir]
                 # If the experiment has a cluster configuration file
                 if self.slurm != None:
     
                     cmd = ' '.join([cmd[0], '='.join(cmd[1:3]), '='.join(cmd[3:5]), '='.join(cmd[5:7])])
     
-                    jobFile =  os.path.join("quantify_scripts/", (self.sampleId + "_quantify.sh"))
+                    job_file =  os.path.join("quantify_scripts/", (self.sample_id + "_quantify.sh"))
                     try:
-                        # Run a job using runJob from the module which returns a job id
-                        jobId = runJob("quantify", jobFile, cmd, self.slurm, self.modules)
+                        # Run a job using run_job from the module which returns a job id
+                        job_id = run_job("quantify", job_file, cmd, self.slurm, self.modules)
                         # The latest (or only) "quantify" job ran for this sample.
                         # Without this one being completed other functions might not be able to run.
-                        msg = sucessSubmit("quantify", self.sampleId, jobId)
+                        msg = sucess_submit("quantify", self.sample_id, job_id)
                         log.write(msg)
-                        exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("quantify", ("Sample " + self.sampleId),jobId, exitCode)
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("quantify", ("Sample " + self.sample_id),job_id, exit_code)
                         log.write(msg)
 
-                        if exitCode == 0:
-                            subprocess.call("mv", self.sampleId, outdir)
+                        if exit_code == 0:
+                            subprocess.call("mv", self.sample_id, outdir)
     
-                        return exitCode
+                        return exit_code
                     except:
                         # If the job couldnt be created but there is a cluster configuration file...
-                        msg = genericError("quantify", self.sampleId)
+                        msg = generic_error("quantify", self.sample_id)
                         log.write(msg)
                         return
                 else:
                     # Run locally
                     subprocess.call(cmd)
-                self.quantifyOutdir = outdir
+                self.quantify_outdir = outdir
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def setQuantificationOutdir(self, cellranger_outdir):
-        self.quantifyOutdir = cellranger_outdir
+    def set_quantification_outdir(self, cellranger_outdir):
+        self.quantify_outdir = cellranger_outdir
         with open(self.logfile, "a") as log:
-            msg = "Quantification directory for sample" + self.sampleId + " is set to: " + cellranger_outdir + ".\n"
+            msg = "Quantification directory for sample" + self.sample_id + " is set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def velocity(self, TE_gtf, geneGTF, indir):
+    def velocity(self, te_gtf, gene_gtf, indir):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
                     os.makedirs("velocity_scripts", exist_ok=True)
                 
-                cmd = ["velocyto run10x", "-m", TE_gtf, indir, geneGTF]
+                cmd = ["velocyto run10x", "-m", te_gtf, indir, gene_gtf]
     
                 if self.slurm != None:
     
                     cmd = ' '.join(cmd)
     
-                    jobFile =  os.path.join("velocity_scripts/", (self.sampleId + "_velocity.sh"))
+                    job_file =  os.path.join("velocity_scripts/", (self.sample_id + "_velocity.sh"))
                     try:
-                        jobId = runJob("velocity", jobFile, cmd, self.slurm, self.modules)
-                        msg = sucessSubmit("velocity", self.sampleId, jobId)
+                        job_id = run_job("velocity", job_file, cmd, self.slurm, self.modules)
+                        msg = sucess_submit("velocity", self.sample_id, job_id)
                         log.write(msg)
 
-                        exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("velocity", ("Sample " + self.sampleId),jobId, exitCode)
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("velocity", ("Sample " + self.sample_id),job_id, exit_code)
                         log.write(msg)
                         
                     except:
-                        msg = genericError("velocity", self.sampleId)
+                        msg = generic_error("velocity", self.sample_id)
                         log.write(msg)
-                        return waitForJob(jobId)
+                        return wait_for_job(job_id)
                 else:
                     subprocess.call(cmd)
-                    subprocess.call("mv", self.sampleId, indir)
+                    subprocess.call("mv", self.sample_id, indir)
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def plotVelocity(self, loom, indir, outdir):
+    def plot_velocity(self, loom, indir, outdir):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
@@ -111,79 +108,77 @@ class Sample:
                     os.makedirs(outdir, exist_ok=True)
 
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                os.path.join(cwd, "py_scripts/plotVelocity.py")
-                # print('plotVelocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
-                cmd = ["python", os.path.join(cwd, "py_scripts/plotVelocity"), "-l", loom, "-n", self.sampleId, "-u", os.path.join(indir, (self.sampleId + "_cell_embeddings.csv")), "-c", os.path.join(indir, (self.sampleId + "_clusters.csv")), "-o", outdir]
+                os.path.join(cwd, "py_scripts/plot_velocity.py")
+                # print('plot_velocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
+                cmd = ["python", os.path.join(cwd, "py_scripts/plot_velocity"), "-l", loom, "-n", self.sample_id, "-u", os.path.join(indir, (self.sample_id + "_cell_embeddings.csv")), "-c", os.path.join(indir, (self.sample_id + "_clusters.csv")), "-o", outdir]
     
                 if self.slurm != None:
     
                     cmd = ' '.join(cmd)
     
-                    jobFile =  os.path.join("velocity_scripts/", (self.sampleId + "_plotVelocity.sh"))
+                    job_file =  os.path.join("velocity_scripts/", (self.sample_id + "_plot_velocity.sh"))
                     try:
-                        jobId = runJob("plotVelocity", jobFile, cmd, self.slurm, self.modules)
-                        msg = sucessSubmit("plotVelocity", self.sampleId, jobId)
+                        job_id = run_job("plot_velocity", job_file, cmd, self.slurm, self.modules)
+                        msg = sucess_submit("plot_velocity", self.sample_id, job_id)
                         log.write(msg)
 
-                        exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("plotVelocity", ("Sample " + self.sampleId), jobId, exitCode)
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("plot_velocity", ("Sample " + self.sample_id), job_id, exit_code)
                         log.write(msg)
                         
                     except:
-                        msg = genericError("plotVelocity", self.sampleId)
+                        msg = generic_error("plot_velocity", self.sample_id)
                         log.write(msg)
-                        return waitForJob(jobId)
+                        return wait_for_job(job_id)
                 else:
                     subprocess.call(cmd)
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def emptyClusters(self):
+    def empty_clusters(self):
         self.clusters = []
         return
 
-    def getClusters(self, indir, outdir, res = 0.5, percMitochondrial = None, minGenes = None, maxGenes = 7000, normalizationMethod = "LogNormalize", exclude = None, maxSize=500):
+    def get_clusters(self, indir, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
         with open(self.logfile, "a") as log:
             try:
-                if not os.path.exists("getClusters_scripts"):
-                    os.makedirs("getClusters_scripts", exist_ok=True)
+                if not os.path.exists("get_clusters_scripts"):
+                    os.makedirs("get_clusters_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
 
                 res = str(res)
-                maxSize = str(maxSize)
-                maxGenes = str(maxGenes)
+                max_size = str(max_size)
+                max_genes = str(max_genes)
                 
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sampleId, "-r", res, "-n", normalizationMethod, "-S", maxSize, "-M", maxGenes]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size, "-M", max_genes]
 
-                if exclude != None:
-                    cmd.extend(["-e", exclude])
-                if percMitochondrial != None:
-                    cmd.extend(["-p", str(percMitochondrial)])
-                if minGenes != None:
-                    cmd.extend(["-m", str(minGenes)])
+                if perc_mitochondrial != None:
+                    cmd.extend(["-p", str(perc_mitochondrial)])
+                if min_genes != None:
+                    cmd.extend(["-m", str(min_genes)])
 
                 if self.slurm != None:
                     cmd = ' '.join(cmd) 
                     log.write("Get clusters command : " + cmd)
-                    jobFile =  os.path.join("getClusters_scripts/", (self.sampleId + "_getClusters.sh"))
+                    job_file =  os.path.join("get_clusters_scripts/", (self.sample_id + "_get_clusters.sh"))
                     try:
-                        jobId = runJob("getClusters", jobFile, cmd, self.slurm, self.modules)
-                        msg = sucessSubmit("getClusters", self.sampleId, jobId)
+                        job_id = run_job("get_clusters", job_file, cmd, self.slurm, self.modules)
+                        msg = sucess_submit("get_clusters", self.sample_id, job_id)
                         log.write(msg)
 
-                        exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("getClusters", ("Sample " + self.sampleId), jobId, exitCode)
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("get_clusters", ("Sample " + self.sample_id), job_id, exit_code)
                         log.write(msg)
                         
-                        if exitCode == 0:
+                        if exit_code == 0:
                             self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
-                            self.rdataPath = os.path.join(outdir, (self.sampleId + ".rds"))
-                        return exitCode
+                            self.rdata_path = os.path.join(outdir, (self.sample_id + ".rds"))
+                        return exit_code
                     except:
-                        msg = genericError("getClusters", self.sampleId)
+                        msg = generic_error("get_clusters", self.sample_id)
                         log.write(msg)
                         return
                 else:
@@ -192,39 +187,39 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def registerClustersFromPath(self, path):
+    def register_clusters_from_path(self, path):
         self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(path, j), self.logfile) for j in os.listdir(path) if j.endswith(".tsv")]
-        self.rdataPath = os.path.join(path, (self.sampleId + ".rds"))
-        msg = "Clusters from " + self.sampleId + " have been registered from " + path + ". Clusters: " + ', '.join([i.clusterName for i in self.clusters]) + "\n"
+        self.rdata_path = os.path.join(path, (self.sample_id + ".rds"))
+        msg = "Clusters from " + self.sample_id + " have been registered from " + path + ". Clusters: " + ', '.join([i.cluster_name for i in self.clusters]) + "\n"
         return msg
 
-    def normalizeTEcounts(self, indir, outdir):
+    def normalize_TE_counts(self, indir, outdir):
         with open(self.logfile, "a") as log:
             try:
-                if not os.path.exists("normalizeTEcounts_scripts"):
-                    os.makedirs("normalizeTEcounts_scripts", exist_ok=True)
+                if not os.path.exists("normalize_TE_counts_scripts"):
+                    os.makedirs("normalize_TE_counts_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdataPath, "-n", self.sampleId]
+                cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdata_path, "-n", self.sample_id]
                 if self.slurm != None:
                     cmd = ' '.join(cmd)
-                    jobFile =  os.path.join("normalizeTEcounts_scripts/", (self.sampleId + "_normalizeTEcounts.sh"))
+                    job_file =  os.path.join("normalize_TE_counts_scripts/", (self.sample_id + "_normalize_TE_counts.sh"))
                     try:
-                        jobId = runJob("normalizeTEcounts", jobFile, cmd, self.slurm, self.modules)
-                        msg = sucessSubmit("normalizeTEcounts", self.sampleId, jobId)
+                        job_id = run_job("normalize_TE_counts", job_file, cmd, self.slurm, self.modules)
+                        msg = sucess_submit("normalize_TE_counts", self.sample_id, job_id)
                         log.write(msg)
                         
-                        exitCode = waitForJob(jobId)
-                        msg = checkExitCodes("normalizeTEcounts", ("Sample " + self.sampleId),jobId, exitCode)
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("normalize_TE_counts", ("Sample " + self.sample_id),job_id, exit_code)
                         log.write(msg)
                         
-                        if exitCode == 0:
-                            self.normTEcounts = os.path.join(outdir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
-                        return exitCode
+                        if exit_code == 0:
+                            self.norm_TE_counts = os.path.join(outdir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
+                        return exit_code
                     except:
-                        msg = genericError("normalizeTEcounts", self.sampleId)
+                        msg = generic_error("normalize_TE_counts", self.sample_id)
                         log.write(msg)
                         return
                 else:

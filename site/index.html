@@ -50,8 +50,6 @@
                 <ul class="current">
                     <li class="toctree-l1 current"><a class="reference internal current" href=".">Introduction</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#version-011-written-in-python-366">Version 0.1.1, written in Python 3.6.6</a>
-    </li>
     <li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#how-to-install">How to install</a>
@@ -71,12 +69,6 @@
     <li class="toctree-l2"><a class="reference internal" href="#functionality-and-workflow">Functionality and workflow</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#running-on-a-server">Running on a server</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#1-slurmpath">1. slurmPath</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#2-modulespath">2. modulesPath</a>
-    </li>
-        </ul>
     </li>
     </ul>
                     </li>
@@ -118,7 +110,7 @@
             <div class="section">
               
                 <h1 id="truster-a-trusting-te-cluster-analysis">trusTEr - A trusting TE cluster analysis</h1>
-<h6 id="version-011-written-in-python-366">Version 0.1.1, written in Python 3.6.6</h6>
+<p><strong>Version 0.1.1, written in Python 3.6.6</strong></p>
 <p>Takes fastq files from 10x single cell RNA sequencing, clusters cells using Seurat, and can be used to produce 
 read count matrices in a cluster level. You can also quantify reads per cluster having predefined clusters.</p>
 <h2 id="requirements">Requirements</h2>
@@ -172,8 +164,8 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 <h2 id="running-on-a-server">Running on a server</h2>
 <p>At the moment of construction of an <code>Experiment</code> object, you can declare <code>slurmPath</code> and a <code>modulePath</code>. These files will be checked whenever a function can be run as an <code>sbatch</code> job.</p>
 <p>For the moment, trusTEr only works with <code>slurm</code> systems. You need to create two json files:</p>
-<h5 id="1-slurmpath">1. slurmPath</h5>
-<p>Declaring the <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> per function. You need to declare a field per function listed that you will use:</p>
+<p><strong>1. slurmPath</strong>
+Declaring the <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> per function. You need to declare a field per function listed that you will use:</p>
 <ul>
 <li>quantify</li>
 <li>getClusters</li>
@@ -218,7 +210,7 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
   &quot;velocity&quot; : {...}
 }
 </code></pre>
-<h5 id="2-modulespath">2. modulesPath</h5>
+<p><strong>2. modulesPath</strong></p>
 <p>In a <code>slurm</code> system, many times you need to load modules for a software to be available. In this json file you declare the name of the needed modules. You need to declare a field per function listed that you will use:</p>
 <ul>
 <li>quantify</li>
@@ -304,5 +296,5 @@ read count matrices in a cluster level. You can also quantify reads per cluster 
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-04-16 18:14:59.248571+00:00
+Build Date UTC : 2021-04-16 18:18:48.998868+00:00
 -->

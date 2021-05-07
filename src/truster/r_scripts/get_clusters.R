@@ -9,8 +9,8 @@ library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
-# path <- '/Volumes/My Passport/Gliomas/29.10.20/1_counts/Seq091_5/outs/filtered_feature_bc_matrix/'
-# sample_name <- "Seq091_5"
+# path <- '/Volumes/My Passport/Gliomas/29.10.20/1_counts/Seq073_5/outs/filtered_feature_bc_matrix/'
+# sample_name <- "Seq073_5"
 # outpath <- '/Volumes/My Passport/Gliomas/15.02.21/2_getClusters/'
 # min_genes <- 1000
 # max_genes <- 7000
@@ -18,7 +18,6 @@ set.seed(10)
 # exclude <- NULL
 # res <- 0.5
 # normalization_method <- "CLR"
-
 
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
@@ -79,8 +78,8 @@ print(paste("Future global max size", as.character(opt$maxSize)))
 sample.data <- Read10X(data.dir = path)
 sample <- CreateSeuratObject(counts = sample.data, project = sample_name, min.cells = 3, min.features = 200)
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
-sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
 sample <- subset(sample, subset = nFeature_RNA > min_genes & nFeature_RNA < max_genes)
+sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
 
