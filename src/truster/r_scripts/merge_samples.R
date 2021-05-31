@@ -8,31 +8,19 @@ library(RColorBrewer)
 library(patchwork)
 set.seed(10)
 
-# paths <- c('/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_5/Seq073_5.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_6/Seq073_6.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_7/Seq073_7.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq073_8/Seq073_8.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_1/Seq091_1.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_2/Seq091_2.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_3/Seq091_3.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_4/Seq091_4.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_7/Seq091_7.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_8/Seq091_8.rds',
-#            '/Volumes/My Passport/Gliomas/04.03.21/2_getClusters/Seq091_9/Seq091_9.rds')
+# paths <- c('/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_11/Seq109_11.rds',
+#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_12/Seq109_12.rds',
+#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_13/Seq109_13.rds',
+#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_14/Seq109_14.rds',
+#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_6/Seq109_6.rds')
 # 
-# ids <- c("Seq073_5",
-#          "Seq073_6",
-#          "Seq073_7",
-#          "Seq073_8",
-#          "Seq091_1",
-#          "Seq091_2",
-#          "Seq091_3",
-#          "Seq091_4",
-#          "Seq091_7",
-#          "Seq091_8",
-#          "Seq091_9")
-# outpath <- "/Volumes/My Passport/Gliomas/04.03.21/3_mergeSamples/"
-# experiment_name <- "gliomas"
+# ids <- c("Seq109_11",
+#          "Seq109_12",
+#          "Seq109_13",
+#          "Seq109_14",
+#          "Seq109_6")
+# outpath <- "/Volumes/My Passport/TBI/06.05.21/3_mergeSamples/"
+# experiment_name <- "healthy"
 
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
@@ -90,11 +78,10 @@ if(integrate == TRUE){
 }else{
   experiment <- merge(samples[[ids[1]]], y=samples[ids[-1]])
   assay = "RNA"
+  # experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
+  experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000, assay = assay)
+  experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000, assay = assay)
 }
-
-# experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
-# experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000, assay = assay)
-# experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000, assay = assay)
 
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes, assay = assay)

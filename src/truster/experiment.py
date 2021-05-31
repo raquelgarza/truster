@@ -108,12 +108,12 @@ class Experiment:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sample in list(self.samples.values()):
-                        if os.path.isdir(sample.quantify_outdir):
-                            sample_indir = sample.quantify_outdir
-                        else:
-                            msg = "Error: File not found. Please make sure that " + sample.quantify_outdir + " exists.\n"
-                            log.write(msg)
-                            return 1
+                        # if os.path.isdir(sample.quantify_outdir):
+                        #     sample_indir = sample.quantify_outdir
+                        # else:
+                        #     msg = "Error: File not found. Please make sure that " + sample.quantify_outdir + " exists.\n"
+                        #     log.write(msg)
+                        #     return 1
                         sample_outdir = os.path.join(outdir, sample.sample_id)
                         res = str(res)
                         max_size = str(max_size)
@@ -121,7 +121,7 @@ class Experiment:
                         max_genes = str(max_genes)
                         
                         msg = "Clustering " + sample.sample_id + " using all cells.\n"
-                        executor.submit(sample.get_clusters, sample_indir, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size)
+                        executor.submit(sample.get_clusters, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size)
                         self.clusters_outdir = outdir
                         log.write(msg)
                 
@@ -220,7 +220,7 @@ class Experiment:
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         with open(self.logfile, "a") as log:
-            samples_seurat_rds = [os.path.join(self.clusters_outdir, sample.sample_id, (sample.sample_id + ".rds")) for sample in list(self.samples.values())]
+            samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
             
             # Sample ids
             samples_ids = [sample.sample_id for sample in list(self.samples.values())]

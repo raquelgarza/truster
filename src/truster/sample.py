@@ -140,7 +140,7 @@ class Sample:
         self.clusters = []
         return
 
-    def get_clusters(self, indir, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
+    def get_clusters(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("get_clusters_scripts"):
@@ -153,7 +153,7 @@ class Sample:
                 max_genes = str(max_genes)
                 
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(indir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size, "-M", max_genes]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size, "-M", max_genes]
 
                 if perc_mitochondrial != None:
                     cmd.extend(["-p", str(perc_mitochondrial)])
