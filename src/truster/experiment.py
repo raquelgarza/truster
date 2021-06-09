@@ -215,7 +215,7 @@ class Experiment:
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
-
+    
     def merge_samples(self, outdir, normalization_method, integrate_samples = "FALSE", max_size=500):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
@@ -502,21 +502,18 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def merge_clusters(self, outdir):
+    def merge_clusters(self, outdir, groups = "all", group_names = "merged_cluster"):
         with open(self.logfile, "a") as log:
-            try:
-                outdir_merged_clusters = os.path.join(outdir, "merged_cluster")
-                if not os.path.exists(outdir_merged_clusters):
-                    os.makedirs(outdir_merged_clusters, exist_ok=True)
-
-                merge_samples_lists_clusters = [samples_clusters.clusters for samples_clusters in self.merge_samples.values()]
+            def merge_cluster_per_group(group, group_name):
+                merge_samples_lists_clusters = [samples_clusters.clusters for sample_id, samples_clusters in self.merge_samples.items() if sample_id in group]
                 merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for merge_samples_list_clusters in merge_samples_lists_clusters for cluster in merge_samples_list_clusters]
                 
                 tsvs = { key : set() for key in merge_samples_clusters }
-                for samples_clusters in self.merge_samples.values():
-                    for cluster in samples_clusters.clusters:
-                        cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
-                        tsvs[cluster_num].add(cluster.tsv)
+                for sample_id, samples_clusters in self.merge_samples.items():
+                    if sample_id in group:
+                        for cluster in samples_clusters.clusters:
+                            cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
+                            tsvs[cluster_num].add(cluster.tsv)
 
                 merge_clusters = dict.fromkeys(tsvs.keys())
                 for cluster_num, tsv in tsvs.items():
@@ -526,12 +523,12 @@ class Experiment:
                 # with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                 for cluster_num in merge_clusters.keys():
                     outdir_concatenat_lanes = os.path.join(outdir, "concatenate_lanes")
-                    outfile = os.path.join(outdir_merged_clusters, ("merged_cluster_" + str(cluster_num) + "_R2.fastq.gz"))
+                    outfile = os.path.join(outdir_merged_clusters, (group_name + "_" + str(cluster_num) + "_R2.fastq.gz"))
                     
                     cluster_fastqs = []
                     for dirpath, subdirs, files in os.walk(outdir_concatenat_lanes):
                         for file in files:
-                            if file.split("_merged.clusters_")[1].split("_R2.fastq.gz")[0] == cluster_num:
+                            if file.split("_merged.clusters_")[1].split("_R2.fastq.gz")[0] == cluster_num and file.split("_merged.clusters_")[0] in group:
                                 cluster_fastqs.append(os.path.join(dirpath, file))
 
                     cmd = cluster_fastqs
@@ -539,53 +536,106 @@ class Experiment:
                     log.write("Running " + ' '.join(cmd) + "\n\n\n")
                     
                     with open(outfile, "w") as fout:
-                        # subprocess.call("date", shell = False, stdout=log, universal_newlines=True)
-                        # self.merged_clusters_results.append(executor.submit(subprocess.call, cmd, shell = False, stdout=fout))
                         self.merged_clusters_results.append(subprocess.call(cmd, shell = False, stdout=fout, universal_newlines=True))
-                         
-                self.merge_samples = merge_clusters
-                self.outdir_merged_clusters = outdir_merged_clusters
-                log.write("self.merge_samples is now " + str(merge_clusters) + "\n\n\n")
+                
+                self.merge_samples_groups[group_name] = merge_clusters
+                self.outdir_merged_clusters_groups[group_name] = outdir_merged_clusters
+                log.write("self.merge_samples_groups[" + group_name + "] is now " + str(merge_clusters) + "\n\n\n")
                 
                 merged_clusters_all_success = all(exit_code == 0 for exit_code in self.merged_clusters_results)
 
                 if merged_clusters_all_success:
-                    msg = "\nmerged_clusters finished succesfully for all samples!\n"
+                    msg = "\nmerged_clusters finished succesfully for group " + group_name + "!\n"
                     log.write(msg)
                     return True
                 else:
-                    msg = "\nmerged_clusters did not finished succesfully for all samples.\n"
+                    msg = "\nmerged_clusters did not finished succesfully for group "+ group_name + ".\n"
                     log.write(msg)
                     return False
+            try:
+                outdir_merged_clusters = os.path.join(outdir, "merged_cluster")
+                if not os.path.exists(outdir_merged_clusters):
+                    os.makedirs(outdir_merged_clusters, exist_ok=True)
+                # If you dont want all samples together (maybe you want to group by condition)
+                # Please provide a list of lists with the groups you want to make
+                merge_cluster_per_group_out = []
+                if groups == "all":
+                    group = list(self.merge_samples.keys())
+                    merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_names))
+                else:
+                    if len(groups) == len(group_names):
+                        for i in range(0,len(groups)):
+                            group = groups[i]
+                            group_name = group_names[i]
+                            if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                                merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_name))
+                            else:
+                                msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
+                                log.write(msg)
+                    else:
+                        msg = "The list of groups and the list of the name of the groups should be of equal length."
+                        log.write(msg)
+                if all(merge_cluster_per_group_out):
+                    delattr(self, "merge_samples")
+                    msg = "The merged clusters can be now found in self.merge_samples_groups[group_name] (group_name = merged_cluster for all samples together)"
+                    log.write(msg)
+                    
             except KeyboardInterrupt:
                     msg = Bcolors.HEADER + "User interrupted. Finishing merging clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                     print(msg)
                     log.write(msg)
 
-    def set_merge_clusters(self, outdir_merged_clusters):
+    def set_merge_clusters(self, outdir_merged_clusters, groups = "all", group_names = "merged_cluster"):
         with open(self.logfile, "a") as log:
+            def set_merge_cluster_per_group(group, group_name):
+                # Cluster objects
+                merge_samples_lists_clusters = [sample.clusters for sample_id, sample in self.merge_samples.items() if sample_id in group]
+                # Cluster number
+                merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for merge_samples_list_clusters in merge_samples_lists_clusters for cluster in merge_samples_list_clusters]
+                
+                # Making a dictionary of type cluster_num : [tsv files (one per sample having this cluster)]
+                # To create the cluster objects later
+                tsvs = { key : set() for key in merge_samples_clusters }
+                for sample_id, samples_clusters in self.merge_samples.items():
+                    if sample_id in group:
+                        for cluster in samples_clusters.clusters:
+                            cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
+                            tsvs[cluster_num].add(cluster.tsv)
+
+                # The actual dictionary containing a cluster object made out of the different samples' tsv
+                merge_clusters = dict.fromkeys(tsvs.keys())
+                for cluster_num, tsv in tsvs.items():
+                    merge_clusters[cluster_num] = Cluster(cluster_name = ("merged_cluster_" + str(cluster_num)), tsv = list(tsvs[cluster_num]), logfile = self.logfile)
+
+                self.merge_samples_groups[group_name] = merge_clusters
+                self.outdir_merged_clusters_groups[group_name] = outdir_merged_clusters
+                log.write("self.merge_samples_groups[" + group_name + "] is now " + str(merge_clusters) + "\n\n\n")
+                
             try:
                 if not os.path.exists(outdir_merged_clusters):
                     log.write("Directory not found: " + outdir_merged_clusters + " does not exist.")
                     return 2
 
-                merge_samples_lists_clusters = [samples_clusters.clusters for samples_clusters in self.merge_samples.values()]
-                merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for merge_samples_list_clusters in merge_samples_lists_clusters for cluster in merge_samples_list_clusters]
-                
-                tsvs = { key : set() for key in merge_samples_clusters }
-                for samples_clusters in self.merge_samples.values():
-                    for cluster in samples_clusters.clusters:
-                        cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
-                        tsvs[cluster_num].add(cluster.tsv)
+                set_merge_cluster_per_group_out = []
+                if groups == "all":
+                    group = list(self.merge_samples.keys())
+                    set_merge_cluster_per_group(group, group_names)
+                else:
+                    if len(groups) == len(group_names):
+                        for i in range(0,len(groups)):
+                            group = groups[i]
+                            group_name = group_names[i]
+                            if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                                set_merge_cluster_per_group(group, group_name)
+                            else:
+                                msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
+                                log.write(msg)
+                    else:
+                        msg = "The list of groups and the list of the name of the groups should be of equal length."
+                        log.write(msg)
 
-                merge_clusters = dict.fromkeys(tsvs.keys())
-                for cluster_num, tsv in tsvs.items():
-                    merge_clusters[cluster_num] = Cluster(cluster_name = ("merged_cluster_" + str(cluster_num)), tsv = list(tsvs[cluster_num]), logfile = self.logfile)
-                
-                self.merge_samples = merge_clusters
-                self.outdir_merged_clusters = outdir_merged_clusters
-                log.write("self.merge_samples is now " + str(merge_clusters) + "\n\n\n")
-                
+                delattr(self, "merge_samples")
+
             except KeyboardInterrupt:
                     msg = Bcolors.HEADER + "User interrupted. Finishing merging clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
                     print(msg)
@@ -604,13 +654,12 @@ class Experiment:
                 else:
                     subdirectory = "multiple"
                 if mode == "merged":
-                    samples_dict = self.merge_samples
-
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                        for cluster_num, cluster in samples_dict.items():
-                            fastq_dir = os.path.join(outdir, "merged_cluster/")
-                            map_outdir = os.path.join(outdir, "map_cluster/", subdirectory)
-                            self.map_cluster_results.append(executor.submit(cluster.map_cluster, "Merged", fastq_dir, map_outdir, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
+                        for condition, clusters in self.merge_samples_groups.items():
+                            for cluster in clusters.values():
+                                fastq_dir = os.path.join(outdir, "merged_cluster/")
+                                map_outdir = os.path.join(outdir, "map_cluster/", subdirectory)
+                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, "Merged", fastq_dir, map_outdir, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
                 else:
                     if mode == "per_sample":
                         samples_dict = self.samples
@@ -778,7 +827,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = "all", group_names = "merged_cluster", out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -841,10 +890,13 @@ class Experiment:
                         return 1
 
                 if mode == "merged" and merge_clusters:
+                    self.merge_samples_groups = dict.fromkeys(group_names)
+                    self.outdir_merged_clusters_groups = dict.fromkeys(group_names)
+
                     current_instruction = "merge_clusters"
                     msg = "concatenate_lanes finished! You selected merged as your mode, so moving on to " + current_instruction
                     log.write(msg)
-                    merge_clusters = self.merge_clusters(outdir = outdir)
+                    merge_clusters = self.merge_clusters(outdir = outdir, groups = groups, group_names = group_names)
                     if not merge_clusters:
                         msg = "Error in merge_clusters"
                         print(msg)
@@ -854,7 +906,7 @@ class Experiment:
 
                 if map_cluster:
                     if mode == "merged" and not finished_on_the_run_merge_clusters:
-                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"))
+                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups, group_names = group_names)
                         finished_on_the_run_merge_clusters = True
 
                     current_instruction = "map_cluster"

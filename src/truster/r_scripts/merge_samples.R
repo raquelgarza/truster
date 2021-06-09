@@ -34,7 +34,7 @@ option_list = list(
   make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
               help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
   make_option(c("-I", "--integrateSamples"), type="character", default = "FALSE", 
-             help = "Integrate samples (Integration of multiple datasets, correct for batch effects or technology differences) (TRUE | FALSE). Default: FALSE", metavar = "character"),
+              help = "Integrate samples (Integration of multiple datasets, correct for batch effects or technology differences) (TRUE | FALSE). Default: FALSE", metavar = "character"),
   make_option(c("-S", "--maxSize"), type="character", default=500,
               help = "Maximum size for global variables in MiB (future.globals.maxSize). This will increase your RAM usage.", metavar = "numeric")
 );

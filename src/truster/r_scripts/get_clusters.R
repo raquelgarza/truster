@@ -82,6 +82,7 @@ sample <- subset(sample, subset = nFeature_RNA > min_genes & nFeature_RNA < max_
 sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
+sample <- RenameCells(sample, sample$orig.ident)
 
 if(!is.null(exclude)){
   print(paste("sample used to have ", ncol(sample), "cells"))

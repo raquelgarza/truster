@@ -158,5 +158,5 @@ As an example:
 If you don't need to load any modules for a software to be available, you can leave the respective list empty.
 
 ---
-You can read the functions' documentation and some tutorials at https://ra7555ga-s.github.io/truster/
+You can read the functions' documentation and some tutorials at https://raquelgarza.github.io/truster/
 

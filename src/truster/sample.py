@@ -10,7 +10,6 @@ from .cluster import Cluster
 from .bcolors import Bcolors
 
 class Sample:
-
     def __init__(self, slurm, modules, logfile, sample_id="", sample_name="", raw_path = ""):
         self.slurm = slurm
         self.modules = modules

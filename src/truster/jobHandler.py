@@ -22,7 +22,6 @@ def run_job(function, job_file, code, slurm, modules):
             pass
         fout.writelines(code + "\n")
         fout.writelines("module purge\n")
-
     sbatch_out = subprocess.run([("sbatch " + str(job_file))], shell=True, stdout=PIPE, stderr=PIPE)
     time.sleep(3)
     if sbatch_out.returncode == 0:
