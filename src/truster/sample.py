@@ -139,7 +139,7 @@ class Sample:
         self.clusters = []
         return
 
-    def get_clusters(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
+    def get_clusters(self, outdir, group_name, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("get_clusters_scripts"):

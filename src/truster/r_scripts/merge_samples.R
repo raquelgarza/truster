@@ -8,19 +8,17 @@ library(RColorBrewer)
 library(patchwork)
 set.seed(10)
 
-# paths <- c('/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_11/Seq109_11.rds',
-#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_12/Seq109_12.rds',
-#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_13/Seq109_13.rds',
-#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_14/Seq109_14.rds',
-#            '/Volumes/My Passport/TBI/06.05.21/2_getClusters/Seq109_6/Seq109_6.rds')
-# 
-# ids <- c("Seq109_11",
-#          "Seq109_12",
-#          "Seq109_13",
-#          "Seq109_14",
-#          "Seq109_6")
-# outpath <- "/Volumes/My Passport/TBI/06.05.21/3_mergeSamples/"
-# experiment_name <- "healthy"
+paths <- c('/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_10/Seq073_10.rds',
+           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_11/Seq073_11.rds',
+           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_12/Seq073_12.rds',
+           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_9/Seq073_9.rds')
+
+ids <- c("Seq073_10",
+         "Seq073_11",
+         "Seq073_12",
+         "Seq073_9")
+outpath <- "/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/"
+experiment_name <- "hp1b"
 
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
@@ -121,7 +119,7 @@ cluster_colours <- experiment[[c("original_cellIds", "seurat_clusters", "cluster
 write.csv(cluster_colours, file = paste(outpath, '/', experiment_name, "_clusters.csv", sep=''))
 
 embedding <- Embeddings(experiment, reduction = "umap")
-write.csv(embedding_origcellIds, file = paste(outpath, '/', experiment_name, "_embeddings.csv", sep=''))
+write.csv(embedding, file = paste(outpath, '/', experiment_name, "_embeddings.csv", sep=''))
 
 gene_expression <- FetchData(experiment, vars = rownames(experiment))
 write.csv(gene_expression, file = paste(outpath, '/', experiment_name, "_gene_counts.csv", sep=''))
@@ -143,12 +141,14 @@ for(i in 1:length(ids)){
   for (k in 1:length(unique(df$clusters))){
     cluster <- unique(df$clusters)[k]
     df.cluster <- subset(df, df$clusters == cluster)
-    df.cluster$barcode <- rownames(df.cluster)
+    # Assuming the naming of the cells is [sample]_[barcode]
+    df.cluster$barcode <- sapply(str_split(rownames(df.cluster), paste(unique(sample$orig.ident), "_", sep="")), `[[`, 2)
     
     dir.create(outpath)
     file_name <- paste(outpath, '/', sampleid, '_merged.clusters_', cluster, '.tsv', sep = '')
     print(file_name)
-    write.table(sapply(str_split(df.cluster$barcode, "_"), `[[`, 1), file = file_name, row.names = F, col.names = F, quote = F)
+    # write.table(sapply(str_split(df.cluster$barcode, "_"), `[[`, 1), file = file_name, row.names = F, col.names = F, quote = F)
+    write.table(df.cluster$barcode, file = file_name, row.names = F, col.names = F, quote = F)
   }
   
 }

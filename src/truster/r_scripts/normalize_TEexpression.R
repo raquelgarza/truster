@@ -21,10 +21,11 @@ set.seed(10)
 # rds = '/Volumes/My Passport/FetalCortex/06.05.21/2_getClusters/Seq095_2/Seq095_2.rds'
 # # 
 # mode = 'merged'
-# obj_name = "gliomas"
-# outdir = '/Volumes/My Passport/Gliomas/04.03.21/3_mergeSamples/clusterPipeline/TEcountsNormalized/multiple/'
-# indir = '/Volumes/My Passport/Gliomas/04.03.21/3_mergeSamples/clusterPipeline/TEcounts/multiple/'
-# rds = '/Volumes/My Passport/Gliomas/04.03.21/3_mergeSamples/gliomas.rds'
+# obj_name = "hp1b"
+# group = "ko"
+# outdir = '/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/clusterPipeline/TE_counts_normalized/multiple/'
+# indir = '/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/clusterPipeline/TE_counts/multiple/'
+# rds = '/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/hp1b.rds'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -33,6 +34,10 @@ option_list = list(
               help="Path to RDS with Seurat object", metavar="character"),
   make_option(c("-n", "--name"), type="character", default=NULL,
               help="Sample id or name", metavar="character"),
+  make_option(c("-g", "--groupName"), type="character", default=NULL,
+              help="Group name", metavar="character"),
+  make_option(c("-s", "--samples"), type="character", default=NULL,
+              help="Sample ids in the group (comma delimited)", metavar="character"),
   make_option(c("-i", "--indir"), type="character", default=NULL,
               help="Path to TEcounts folder with output per cluster or parent directory from all samples folder", metavar="character"),
   make_option(c("-o", "--outdir"), type="character", default=NULL,
@@ -50,6 +55,8 @@ if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$RDS) | is.null(opt$mo
 mode <- trimws(opt$mode)
 rds <- opt$RDS
 obj_name <- opt$name
+group_name <- opt$groupName
+samples <- unlist(str_split(opt$samples, ","))
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))
 
@@ -63,26 +70,32 @@ print(c("Input path: ", indir))
 print(c("Output path: ", outdir))
 
 seurat.obj <- readRDS(rds)
+seurat.obj <- subset(seurat.obj, orig.ident %in% samples)
 
 cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
 colnames(cluster_sizes) <- c('cluster', 'cluster.size')
-cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='.cluster_')
 
 files <- list.files(indir, recursive = F)
+if( mode == "merged"){
+  files <- files[which(grepl(group_name, files))]
+  cluster_sizes$name <- paste(obj_name, group_name, cluster_sizes$cluster, sep='_')
+}else{
+  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='.cluster_')
+}
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
-    # mergedCluster is how trusTEr is programmed to name the files
-    cluster <- unlist(str_split(unlist(str_split(files[i], "mergedCluster_")[1])[2], "_"))[1]
-    sample = paste(obj_name, cluster, sep="_")
-    name <- paste(obj_name, cluster, sep=".cluster_")
-    coldata <- rbind(coldata, data.frame(sample=sample, name = name, cluster=cluster))
+    cluster <- gsub("_", "", unlist(str_split(unlist(str_split(files[i], group_name))[2], ".cntTable"))[1])
+    # sample = paste(obj_name, group, cluster, sep="_")
+    name <- paste(obj_name, group_name, cluster, sep="_") #paste(obj_name, cluster, sep=".cluster_")
+    coldata <- rbind(coldata, data.frame(sample=obj_name, name = name, cluster=cluster)) 
   }else{
     file_name <- sub("_$", "", sapply(str_split(files[i], '.cntTable'), `[[`, 1))
     # sample <- unlist(str_split(file_name, '_clusters'))[1]
     cluster <- unlist(str_split(file_name, 'clusters_'))[2]
     name <- paste(obj_name, cluster, sep=".cluster_")
     coldata <- rbind(coldata, data.frame(sample=obj_name, name=name, cluster=cluster))
+    
   }
   
   file <- paste(indir, files[i], sep='')
@@ -140,7 +153,7 @@ te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], c
 
 te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
 te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id')))
-te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, '[[.]]'),`[[`, 2))
+te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable, paste("_", group_name, "_", sep="")),`[[`, 2))
 
 cells_clusters <- data.frame(seurat.obj$seurat_clusters)
 colnames(cells_clusters) <- "cluster"
@@ -155,7 +168,7 @@ seurat.obj[["TE_norm_cluster_size"]] <- CreateAssayObject(counts = te_counts_siz
 
 te_counts$te_id <- rownames(te_counts)
 te_counts_melt <- reshape2::melt(te_counts, by=list(c('te_id')))
-te_counts_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_melt$variable, '[[.]]'),`[[`, 2))
+te_counts_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_melt$variable, paste("_", group_name, "_", sep="")),`[[`, 2))
 te_counts_melt_percell <- merge(cells_clusters, te_counts_melt, by='cluster', all = T)
 te_counts_melt_percell <- reshape2::dcast(te_counts_melt_percell, formula = te_id~cell_ids, value=value)
 rownames(te_counts_melt_percell) <- te_counts_melt_percell$te_id  
@@ -169,7 +182,7 @@ te_counts_size_reads_norm <- te_counts_size_reads_norm[, rownames(coldata)] * 1e
 
 te_counts_size_reads_norm$te_id <- rownames(te_counts_size_reads_norm)
 te_counts_size_reads_norm_melt <- reshape2::melt(te_counts_size_reads_norm, by=list(c('te_id')))
-te_counts_size_reads_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_reads_norm_melt$variable, '[[.]]'),`[[`, 2))
+te_counts_size_reads_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_reads_norm_melt$variable, paste("_", group_name, "_", sep="")),`[[`, 2))
 
 te_counts_size_reads_norm_melt_percell <- merge(cells_clusters, te_counts_size_reads_norm_melt, by='cluster', all = T)
 te_counts_size_reads_norm_melt_percell <- reshape2::dcast(te_counts_size_reads_norm_melt_percell, formula = te_id~cell_ids, value=value)
@@ -182,10 +195,14 @@ seurat.obj[["TE_norm_cluster_size_num_reads"]] <- CreateAssayObject(counts = te_
 te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
 te_counts_size_reads_norm <- te_counts_size_reads_norm[,c(colnames(te_counts_size_reads_norm)[ncol(te_counts_size_reads_norm)], colnames(te_counts_size_reads_norm)[-ncol(te_counts_size_reads_norm)])]
 te_counts <- te_counts[,c(colnames(te_counts)[ncol(te_counts)], colnames(te_counts)[-ncol(te_counts)])]
-fwrite(te_counts_size_norm, paste(outdir, 'TE_norm_cluster_size_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
-fwrite(te_counts_size_reads_norm, paste(outdir, 'TE_norm_cluster_size_num_reads_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+
+file_name <- ifelse(is.null(group_name), "TE_norm_cluster_size_matrix.csv", paste(group_name, "TE_norm_cluster_size_matrix.csv", sep="_"))
+fwrite(te_counts_size_norm, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+file_name <- ifelse(is.null(group_name), "TE_norm_cluster_size_num_reads_matrix.csv", paste(group_name, "TE_norm_cluster_size_num_reads_matrix.csv", sep="_"))
+fwrite(te_counts_size_reads_norm, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 # To compare with bulk data
-fwrite(te_counts, paste(outdir, 'TE_raw_matrix.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
+file_name <- ifelse(is.null(group_name), "TE_raw_matrix.csv", paste(group_name, "TE_raw_matrix.csv", sep="_"))
+fwrite(te_counts, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 
 # if(mode == 'merged'){
 #   te_counts_size_norm_aggr <- aggregate(te_counts_size_norm_melt$value, list(te_counts_size_norm_melt$te_id, te_counts_size_norm_melt$variable, te_counts_size_norm_melt$cluster), mean)
@@ -199,7 +216,7 @@ fwrite(te_counts, paste(outdir, 'TE_raw_matrix.csv', sep=''), quote = F, row.nam
 #   fwrite(te_counts_size_melt, paste(outdir, 'TE_rawValues_melted.csv', sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 # }
 
-
+rds <- paste(unlist(str_split(rds, ".rds"))[1], "_", group_name, ".rds", sep="")
 saveRDS(seurat.obj, file = rds)
 
 
