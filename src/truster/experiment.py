@@ -790,7 +790,7 @@ class Experiment:
             if self.slurm_path != None:
                 cmd = ' '.join(cmd)
                 
-                job_file =  "merge_samplesNorm_scripts/" + self.name + group_name + "_merge_samples_norm.sh"
+                job_file =  "merge_samples_norm_scripts/" + self.name + group_name + "_merge_samples_norm.sh"
                 job_id = run_job("normalize_TE_counts", job_file, cmd, self.slurm, self.modules)
                 
                 msg = sucess_submit("normalize_TE_counts", self.name, job_id)

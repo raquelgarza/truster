@@ -8,17 +8,17 @@ library(RColorBrewer)
 library(patchwork)
 set.seed(10)
 
-paths <- c('/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_10/Seq073_10.rds',
-           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_11/Seq073_11.rds',
-           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_12/Seq073_12.rds',
-           '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_9/Seq073_9.rds')
-
-ids <- c("Seq073_10",
-         "Seq073_11",
-         "Seq073_12",
-         "Seq073_9")
-outpath <- "/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/"
-experiment_name <- "hp1b"
+# paths <- c('/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_10/Seq073_10.rds',
+#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_11/Seq073_11.rds',
+#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_12/Seq073_12.rds',
+#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_9/Seq073_9.rds')
+# 
+# ids <- c("Seq073_10",
+#          "Seq073_11",
+#          "Seq073_12",
+#          "Seq073_9")
+# outpath <- "/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/"
+# experiment_name <- "hp1b"
 
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
