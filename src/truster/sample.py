@@ -19,42 +19,21 @@ class Sample:
         self.logfile = logfile
 
     def quantify(self, cr_index, indir, outdir):
+        dry_run = False
+        if not os.path.exists("quantify_scripts/"):
+            os.makedirs("quantify_scripts", exist_ok=True)
+
         with open(self.logfile, "a") as log:
             try:
-                if not os.path.exists("quantify_scripts/"):
-                    os.makedirs("quantify_scripts", exist_ok=True)
-    
                 cmd = ["cellranger count", "--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir]
-                # If the experiment has a cluster configuration file
-                if self.slurm != None:
-    
-                    cmd = ' '.join([cmd[0], '='.join(cmd[1:3]), '='.join(cmd[3:5]), '='.join(cmd[5:7])])
-    
-                    job_file =  os.path.join("quantify_scripts/", (self.sample_id + "_quantify.sh"))
-                    try:
-                        # Run a job using run_job from the module which returns a job id
-                        job_id = run_job("quantify", job_file, cmd, self.slurm, self.modules)
-                        # The latest (or only) "quantify" job ran for this sample.
-                        # Without this one being completed other functions might not be able to run.
-                        msg = sucess_submit("quantify", self.sample_id, job_id)
-                        log.write(msg)
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("quantify", ("Sample " + self.sample_id),job_id, exit_code)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "quantify", fun_module = "quantify", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        if exit_code == 0:
-                            subprocess.call("mv", self.sample_id, outdir)
-    
-                        return exit_code
-                    except:
-                        # If the job couldnt be created but there is a cluster configuration file...
-                        msg = generic_error("quantify", self.sample_id)
-                        log.write(msg)
-                        return
-                else:
-                    # Run locally
-                    subprocess.call(cmd)
-                self.quantify_outdir = outdir
+                if exit_code == 0:
+                    subprocess.call("mv", self.sample_id, outdir)
+                    self.quantify_outdir = outdir
+                
+                return exit_code
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
@@ -72,28 +51,13 @@ class Sample:
                     os.makedirs("velocity_scripts", exist_ok=True)
                 
                 cmd = ["velocyto run10x", "-m", te_gtf, indir, gene_gtf]
-    
-                if self.slurm != None:
-    
-                    cmd = ' '.join(cmd)
-    
-                    job_file =  os.path.join("velocity_scripts/", (self.sample_id + "_velocity.sh"))
-                    try:
-                        job_id = run_job("velocity", job_file, cmd, self.slurm, self.modules)
-                        msg = sucess_submit("velocity", self.sample_id, job_id)
-                        log.write(msg)
-
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("velocity", ("Sample " + self.sample_id),job_id, exit_code)
-                        log.write(msg)
-                        
-                    except:
-                        msg = generic_error("velocity", self.sample_id)
-                        log.write(msg)
-                        return wait_for_job(job_id)
-                else:
-                    subprocess.call(cmd)
+                result = run_instruction(cmd = cmd, fun = "velocity", fun_module = "velocity", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
+                
+                if exit_code == 0:
                     subprocess.call("mv", self.sample_id, indir)
+                
+                return exit_code
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
@@ -110,27 +74,9 @@ class Sample:
                 os.path.join(cwd, "py_scripts/plot_velocity.py")
                 # print('plot_velocity -l <loom> -n <sample_name> -u <umap> -c <clusters> -o <outdir>')
                 cmd = ["python", os.path.join(cwd, "py_scripts/plot_velocity"), "-l", loom, "-n", self.sample_id, "-u", os.path.join(indir, (self.sample_id + "_cell_embeddings.csv")), "-c", os.path.join(indir, (self.sample_id + "_clusters.csv")), "-o", outdir]
-    
-                if self.slurm != None:
-    
-                    cmd = ' '.join(cmd)
-    
-                    job_file =  os.path.join("velocity_scripts/", (self.sample_id + "_plot_velocity.sh"))
-                    try:
-                        job_id = run_job("plot_velocity", job_file, cmd, self.slurm, self.modules)
-                        msg = sucess_submit("plot_velocity", self.sample_id, job_id)
-                        log.write(msg)
-
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("plot_velocity", ("Sample " + self.sample_id), job_id, exit_code)
-                        log.write(msg)
-                        
-                    except:
-                        msg = generic_error("plot_velocity", self.sample_id)
-                        log.write(msg)
-                        return wait_for_job(job_id)
-                else:
-                    subprocess.call(cmd)
+                result = run_instruction(cmd = cmd, fun = "plot_velocity", fun_module = "plot_velocity", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
+                return exit_code
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
@@ -159,29 +105,14 @@ class Sample:
                 if min_genes != None:
                     cmd.extend(["-m", str(min_genes)])
 
-                if self.slurm != None:
-                    cmd = ' '.join(cmd) 
-                    log.write("Get clusters command : " + cmd)
-                    job_file =  os.path.join("get_clusters_scripts/", (self.sample_id + "_get_clusters.sh"))
-                    try:
-                        job_id = run_job("get_clusters", job_file, cmd, self.slurm, self.modules)
-                        msg = sucess_submit("get_clusters", self.sample_id, job_id)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "get_clusters", fun_module = "get_clusters", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("get_clusters", ("Sample " + self.sample_id), job_id, exit_code)
-                        log.write(msg)
-                        
-                        if exit_code == 0:
-                            self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
-                            self.rdata_path = os.path.join(outdir, (self.sample_id + ".rds"))
-                        return exit_code
-                    except:
-                        msg = generic_error("get_clusters", self.sample_id)
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
+                if exit_code == 0:
+                    self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
+                    self.rdata_path = os.path.join(outdir, (self.sample_id + ".rds"))
+                return exit_code
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
@@ -202,28 +133,14 @@ class Sample:
     
                 cwd = os.path.dirname(os.path.realpath(__file__))
                 cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "individual", "-o", outdir, "-i", indir, "-r", self.rdata_path, "-n", self.sample_id]
-                if self.slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("normalize_TE_counts_scripts/", (self.sample_id + "_normalize_TE_counts.sh"))
-                    try:
-                        job_id = run_job("normalize_TE_counts", job_file, cmd, self.slurm, self.modules)
-                        msg = sucess_submit("normalize_TE_counts", self.sample_id, job_id)
-                        log.write(msg)
+                
+                result = run_instruction(cmd = cmd, fun = "normalize_TE_expression", fun_module = "normalize_TE_expression", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
                         
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("normalize_TE_counts", ("Sample " + self.sample_id),job_id, exit_code)
-                        log.write(msg)
-                        
-                        if exit_code == 0:
-                            self.norm_TE_counts = os.path.join(outdir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
-                        return exit_code
-                    except:
-                        msg = generic_error("normalize_TE_counts", self.sample_id)
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
-                    pass
+                if exit_code == 0:
+                    self.norm_TE_counts = os.path.join(outdir, "TE_normalizedValues_aggregatedByClusters_melted.csv")
+                return exit_code
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
