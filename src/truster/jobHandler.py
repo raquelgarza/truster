@@ -4,6 +4,33 @@ from subprocess import PIPE
 import pandas as pd
 import time
 from .bcolors import Bcolors
+import os
+
+def run_instruction(cmd, fun, dry_run, fun_module, name, logfile, slurm = None, modules = None):
+    with open(logfile, "a") as log:
+        if slurm != None:
+            cmd = ' '.join(cmd)
+            job_file =  os.path.join((fun + "_scripts/"), (name + "_" + fun + ".sh"))
+            try:
+                if not dry_run:
+                    job_id = run_job(fun_module, job_file, cmd, slurm, modules)
+                    msg = sucess_submit(fun, name, job_id)
+                    log.write(msg)
+                    
+                    exit_code = wait_for_job(job_id)
+                    msg = check_exit_codes(fun, name, job_id, exit_code)
+                    log.write(msg)
+
+                    return [msg, exit_code]
+                else:
+                    log.write(cmd + "\n")
+                    return [cmd, 0]
+            except:
+                msg = generic_error(fun, name)
+                log.write(msg)
+                return [msg, 2]
+        else:
+            subprocess.call(cmd)
 
 def run_job(function, job_file, code, slurm, modules):
     with open(job_file, "w") as fout:

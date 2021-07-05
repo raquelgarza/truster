@@ -9,40 +9,26 @@ class Cluster:
     def __init__(self, cluster_name, tsv, logfile):
         self.cluster_name = cluster_name
         self.tsv = tsv
-        self.outdirs = {"tsv_to_bam" : None, "filter_UMIs" : None, "bam_to_fastq" : None, "concatenate_lanes" : None, "map_cluster" : None}
+        self.outdirs = {"tsv_to_bam" : None, "filter_UMIs" : None, "bam_to_fastq" : None, "concatenate_lanes" : None, "map_cluster" : None, "TE_count_unique" : None, "TE_count" : None}
         self.logfile = logfile
 
     def tsv_to_bam(self, sample_id, bam, outdir, slurm=None, modules=None):
+        if not os.path.exists("tsv_to_bam_scripts"):
+            os.makedirs("tsv_to_bam_scripts", exist_ok=True)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+
         with open(self.logfile, "a") as log:
             try:
-                if not os.path.exists("tsv_to_bam_scripts"):
-                    os.makedirs("tsv_to_bam_scripts", exist_ok=True)
-                if not os.path.exists(outdir):
-                    os.makedirs(outdir, exist_ok=True)
-    
                 cmd = ["subset-bam", "--bam", bam, "--cell-barcodes", self.tsv, "--out-bam", os.path.join(outdir, (self.cluster_name + ".bam"))]
-    
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-    
-                    job_file =  os.path.join("tsv_to_bam_scripts/", (self.cluster_name + "_tsv_to_bam.sh"))
-                    try:
-                        job_id = run_job("tsv_to_bam", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("tsv_to_bam", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                
+                result = run_instruction(cmd = cmd, fun = "tsv_to_bam", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = "tsv_to_bam", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("tsv_to_bam", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        if exit_code == 0:
-                            self.outdirs["tsv_to_bam"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("tsv_to_bam", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
+                if exit_code == 0:
+                    self.outdirs["tsv_to_bam"] = outdir
+                return result
+                    
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -59,26 +45,13 @@ class Cluster:
                 cwd = os.path.dirname(os.path.realpath(__file__))
                 
                 cmd = ["python", os.path.join(cwd, "py_scripts/filterUMIs"), "-i", inbam, "-o", outbam]
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("filter_UMIs_scripts/", (self.cluster_name + "_filter_UMIs.sh"))
-                    try:
-                        job_id = run_job("filter_UMIs", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("filter_UMIs", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "filter_UMIs", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = "filter_UMIs", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("filter_UMIs", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        if exit_code == 0:
-                            self.outdirs["filter_UMIs"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("filter_UMIs", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
+                if exit_code == 0:
+                    self.outdirs["filter_UMIs"] = outdir
+                return result
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -91,27 +64,13 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
                 cmd = ["bamtofastq-1.2.0", bam, (outdir + "/" + self.cluster_name)]
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("bam_to_fastq_scripts/", (self.cluster_name + "_bam_to_fastq.sh"))
-                    try:
-                        job_id = run_job("bam_to_fastq", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("bam_to_fastq", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                cmd = ["python", os.path.join(cwd, "py_scripts/filterUMIs"), "-i", inbam, "-o", outbam]
+                result = run_instruction(cmd = cmd, fun = "bam_to_fastq", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = "bam_to_fastq", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("bam_to_fastq", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        
-                        if exit_code == 0:
-                            self.outdirs["bam_to_fastq"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("bam_to_fastq", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
+                if exit_code == 0:
+                    self.outdirs["bam_to_fastq"] = outdir
+                return result
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -125,26 +84,13 @@ class Cluster:
                     os.makedirs(outdir, exist_ok=True)
     
                 cmd = ["cat", os.path.join(indir, self.cluster_name, "*/*_R2_001.fastq.gz"), ">", os.path.join(outdir, (self.cluster_name + "_R2.fastq.gz"))]
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("concatenate_lanes_scripts/", (self.cluster_name + "_concatenate_lanes.sh"))
-                    try:
-                        job_id = run_job("concatenate_lanes", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "concatenate_lanes", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = "concatenate_lanes", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("concatenate_lanes", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        if exit_code == 0:
-                            self.outdirs["concatenate_lanes"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call([cmd])
+                if exit_code == 0:
+                    self.outdirs["bam_to_fastq"] = outdir
+                return result
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -165,27 +111,13 @@ class Cluster:
                 if out_tmp_dir != None:
                     cmd.extend(["--out_tmp_dir", out_tmp_dir])
                 cmd.extend(["--readFilesIn", os.path.join(fastq_dir, (self.cluster_name + "_R2.fastq.gz"))])
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("map_cluster_scripts/", (self.cluster_name + "_map_cluster.sh"))
-                    try:
-                        job_id = run_job("map_cluster", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("map_cluster", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "map_cluster", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = "map_cluster", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("map_cluster", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        
-                        if exit_code == 0:
-                            self.outdirs["map_cluster"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("map_cluster", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    subprocess.call(cmd)
+                if exit_code == 0:
+                    self.outdirs["map_cluster"] = outdir
+                return result
+
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -202,32 +134,19 @@ class Cluster:
                     cmd = ["featureCounts", "-s", str(1), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), bam]
                 else:
                     cmd = ["TEcount", "-b", bam, "--GTF", gene_gtf, "--TE", te_gtf, "--format", "BAM", "--stranded", "yes", "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_"))]
-    
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("TE_count_scripts/", (self.cluster_name + "_TE_count.sh"))
-                    try:
-                        if unique:
-                            function_name = "TE_count_unique"
-                        else:
-                            function_name = "TE_count"
-                        job_id = run_job(function_name, job_file, cmd, slurm, modules)
-                        msg = sucess_submit(function_name, (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
-                        
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes(function_name, ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        
-                        if exit_code == 0:
-                            self.outdirs["TE_count"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error(function_name, (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
+                
+                if unique:
+                    function_name = "TE_count_unique"
                 else:
-                    subprocess.call(cmd)
+                    function_name = "TE_count"
+
+                result = run_instruction(cmd = cmd, fun = "TE_count", name = (" sample " + sample_id + " cluster " +  self.cluster_name), fun_module = function_name, dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
+
+                if exit_code == 0:
+                    self.outdirs[function_name] = outdir
+                return result
+                
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
