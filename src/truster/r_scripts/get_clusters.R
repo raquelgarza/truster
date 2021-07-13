@@ -9,8 +9,8 @@ library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
-# path <- '/Volumes/My Passport/Gliomas/29.10.20/1_counts/Seq073_5/outs/filtered_feature_bc_matrix/'
-# sample_name <- "Seq073_5"
+# path <- '/Volumes/My Passport/FetalCortex/Dec2020/1_counts/Seq098_2/outs/filtered_feature_bc_matrix/'
+# sample_name <- "seq098_2"
 # outpath <- '/Volumes/My Passport/Gliomas/15.02.21/2_getClusters/'
 # min_genes <- 1000
 # max_genes <- 7000
@@ -30,10 +30,10 @@ option_list = list(
               help="Resolution. Default 0.5", metavar="character"),
   make_option(c("-p", "--percMitochondria"), type="character", default=NULL,
               help="Maximum percentage of mitochondrial counts", metavar="character"),
-  make_option(c("-m", "--minGenes"), type="numeric", default=500,
-              help="Minimum number of genes detected per cell. Default 500.", metavar="numeric"),
-  make_option(c("-M", "--maxGenes"), type="numeric", default=7000,
-              help="Maximum number of genes detected per cell. Default 7000", metavar="numeric"),
+  make_option(c("-m", "--minGenes"), type="numeric", default=NULL,
+              help="Minimum number of genes detected per cell. Default mean - sd, or zero if negative.", metavar="numeric"),
+  make_option(c("-M", "--maxGenes"), type="numeric", default=NULL,
+              help="Maximum number of genes detected per cell. Default mean + 2(sd)", metavar="numeric"),
   make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
               help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
   make_option(c("-e", "--exclude"), type="character", default=NULL,
@@ -68,7 +68,6 @@ if(!is.null(exclude)){
 print(paste("Path", path))
 print(paste("Sample", sample_name))
 print(paste("Outpath", outpath))
-print(paste("Min genes", min_genes))
 print(paste("Perc mito", perc_mito))
 print(paste("Exclude", exclude))
 print(paste("Resolution", as.character(res)))
@@ -78,7 +77,16 @@ print(paste("Future global max size", as.character(opt$maxSize)))
 sample.data <- Read10X(data.dir = path)
 sample <- CreateSeuratObject(counts = sample.data, project = sample_name, min.cells = 3, min.features = 200)
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
+if(is.null(max_genes)){
+  max_genes <- mean(sample$nFeature_RNA) + 2*(sd(sample$nFeature_RNA)) 
+}
+if(is.null(min_genes)){
+  min_genes <- mean(sample$nFeature_RNA) - (sd(sample$nFeature_RNA))
+  min_genes <- ifelse(min_genes < 0, 0, min_genes)
+}
 sample <- subset(sample, subset = nFeature_RNA > min_genes & nFeature_RNA < max_genes)
+print(paste("Min genes", min_genes))
+print(paste("Max genes", max_genes))
 sample <- NormalizeData(sample, normalization.method = normalization_method, scale.factor = 10000)
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)

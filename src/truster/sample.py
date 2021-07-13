@@ -44,7 +44,7 @@ class Sample:
             msg = "Quantification directory for sample" + self.sample_id + " is set to: " + cellranger_outdir + ".\n"
             log.write(msg)
 
-    def velocity(self, te_gtf, gene_gtf, indir):
+    def velocity(self, te_gtf, gene_gtf, indir, dry_run=False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
@@ -85,7 +85,7 @@ class Sample:
         self.clusters = []
         return
 
-    def get_clusters(self, outdir, group_name, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = 7000, normalization_method = "LogNormalize", max_size=500):
+    def get_clusters(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size=500, dry_run = False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("get_clusters_scripts"):
@@ -98,12 +98,14 @@ class Sample:
                 max_genes = str(max_genes)
                 
                 cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size, "-M", max_genes]
+                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size]
 
-                if perc_mitochondrial != None:
+                if perc_mitochondrial is not None:
                     cmd.extend(["-p", str(perc_mitochondrial)])
-                if min_genes != None:
+                if min_genes is not None:
                     cmd.extend(["-m", str(min_genes)])
+                if max_genes is not None:
+                    cmd.extend(["-M", str(max_genes)])
 
                 result = run_instruction(cmd = cmd, fun = "get_clusters", fun_module = "get_clusters", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
                 exit_code = result[1]

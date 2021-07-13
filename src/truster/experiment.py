@@ -103,7 +103,7 @@ class Experiment:
     def set_quantification_outdir(self, sample_id, cellranger_outdir):
         self.samples[sample_id].set_quantification_outdir(cellranger_outdir)
 
-    def get_clusters_all_samples(self, outdir, groups = None, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, jobs=1):
+    def get_clusters_all_samples(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, dry_run = False, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -111,11 +111,13 @@ class Experiment:
                         sample_outdir = os.path.join(outdir, sample.sample_id)
                         res = str(res)
                         max_size = str(max_size)
-                        min_genes = str(min_genes)
-                        max_genes = str(max_genes)
+                        if min_genes is not None:
+                            min_genes = str(min_genes)
+                        if max_genes is not None:
+                            max_genes = str(max_genes)
                         
                         msg = "Clustering " + sample.sample_id + " using all cells.\n"
-                        executor.submit(sample.get_clusters, sample_outdir, group_name, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size)
+                        executor.submit(sample.get_clusters, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size, dry_run)
                         self.clusters_outdir = outdir
                         log.write(msg)
                 
@@ -200,7 +202,7 @@ class Experiment:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
     
-    def merge_samples(self, outdir, normalization_method, integrate_samples = "FALSE", max_size=500):
+    def merge_samples(self, outdir, normalization_method, integrate_samples = False, max_size=500, dry_run = False):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
@@ -224,6 +226,12 @@ class Experiment:
             # and output (-o) of the output directory desired, -s for sample ids,
             # and -e for sample names used in cellranger
             cwd = os.path.dirname(os.path.realpath(__file__))
+            
+            if integrate_samples:
+                integrate_samples = "TRUE"
+            else:
+                integrate_samples = "FALSE"
+
             cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samples_seurat_rds), "-o", outdir, "-s", ','.join(samples_ids), "-e", self.name, "-n", normalization_method, "-S", max_size, "-I", integrate_samples]
             result = run_instruction(cmd = cmd, fun = "merge_samples", name = self.name, fun_module = "merge_samples", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
             exit_code = result[1]

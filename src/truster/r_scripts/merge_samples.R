@@ -140,7 +140,7 @@ for(i in 1:length(ids)){
   
   for (k in 1:length(unique(df$clusters))){
     cluster <- unique(df$clusters)[k]
-    df.cluster <- subset(df, df$clusters == cluster)
+    df.cluster <- subset(df, df$clusters == as.character(cluster))
     # Assuming the naming of the cells is [sample]_[barcode]
     df.cluster$barcode <- sapply(str_split(rownames(df.cluster), paste(unique(sample$orig.ident), "_", sep="")), `[[`, 2)
     
