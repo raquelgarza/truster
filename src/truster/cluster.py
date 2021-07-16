@@ -64,7 +64,6 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
                 cmd = ["bamtofastq-1.2.0", bam, (outdir + "/" + self.cluster_name)]
-                cmd = ["python", os.path.join(cwd, "py_scripts/filterUMIs"), "-i", inbam, "-o", outbam]
                 result = run_instruction(cmd = cmd, fun = "bam_to_fastq", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "bam_to_fastq", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
                 exit_code = result[1]
 

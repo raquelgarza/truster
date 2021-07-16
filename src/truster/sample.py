@@ -125,7 +125,7 @@ class Sample:
         msg = "Clusters from " + self.sample_id + " have been registered from " + path + ". Clusters: " + ', '.join([i.cluster_name for i in self.clusters]) + "\n"
         return msg
 
-    def normalize_TE_counts(self, indir, outdir):
+    def normalize_TE_counts(self, indir, outdir, dry_run=False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("normalize_TE_counts_scripts"):
