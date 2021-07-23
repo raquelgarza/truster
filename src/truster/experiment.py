@@ -706,7 +706,7 @@ class Experiment:
 
     def normalize_TE_counts(self, mode, outdir, groups, unique=False, dry_run=False, jobs=1):
         print("Running normalize_TE_counts with " + str(jobs) + " jobs.\n")
-        def normalize_TE_counts_per_merged_group(group_name, indir, outdir_norm, dry_run):
+        def normalize_TE_counts_per_merged_group(group_name, group, indir, outdir_norm, dry_run):
             rdata = os.path.join(self.merge_samples_outdir, (self.name + ".rds"))
 
             if not os.path.exists("normalize_TE_counts_scripts"):
@@ -716,7 +716,6 @@ class Experiment:
             
             cwd = os.path.dirname(os.path.realpath(__file__))
             cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
-
             result = run_instruction(cmd = cmd, fun = "normalize_TE_counts", fun_module = "normalize_TE_counts", dry_run = dry_run, name = (self.name + "_" + group_name), logfile = self.logfile, slurm = self.slurm, modules = self.modules)
             return result
             
@@ -741,10 +740,9 @@ class Experiment:
                             # if group_name == "merged_cluster":
                             #     log.write(str(self.merge_cluster_per_group_out))
                             #     group = self.merge_cluster_per_group_out[group_name]
-                            log.write(str(executor.submit(normalize_TE_counts_per_merged_group, group_name, indir, outdir_norm, dry_run)))
                             if len(list(groups.keys())) == 1:
                                 group_name = "merged_cluster"
-                            self.normalized_results.append(executor.submit(normalize_TE_counts_per_merged_group, group_name, indir, outdir_norm, dry_run))
+                            self.normalized_results.append(executor.submit(normalize_TE_counts_per_merged_group, group_name, group, indir, outdir_norm, dry_run))
                         log.write(str(self.normalized_results))
                         normalized_exit_codes = [i.result()[1] for i in self.normalized_results]
                         normalized_all_success = not all(normalized_exit_codes) # Exit code of zero indicates success

@@ -9,11 +9,11 @@ library(RColorBrewer)
 library(data.table)
 set.seed(10)
 
-# path <- '/Volumes/My Passport/FetalCortex/Dec2020/1_counts/Seq098_2/outs/filtered_feature_bc_matrix/'
+# path <- '/Volumes/My Passport/FetalCortex/Dec2020/1_counts/DA103/'
 # sample_name <- "seq098_2"
 # outpath <- '/Volumes/My Passport/Gliomas/15.02.21/2_getClusters/'
-# min_genes <- 1000
-# max_genes <- 7000
+# min_genes <- NULL
+# max_genes <- NULL
 # perc_mito <- 10
 # exclude <- NULL
 # res <- 0.5

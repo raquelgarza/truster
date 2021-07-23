@@ -24,6 +24,7 @@ def run_instruction(cmd, fun, dry_run, fun_module, name, logfile, slurm = None, 
                     return [msg, exit_code]
                 else:
                     log.write(cmd + "\n")
+                    run_job(fun_module, job_file, cmd, slurm, modules, dry_run)
                     return [cmd, 0]
             except:
                 msg = generic_error(fun, name)
@@ -32,7 +33,7 @@ def run_instruction(cmd, fun, dry_run, fun_module, name, logfile, slurm = None, 
         else:
             subprocess.call(cmd)
 
-def run_job(function, job_file, code, slurm, modules):
+def run_job(function, job_file, code, slurm, modules, dry_run = False):
     with open(job_file, "w") as fout:
         fout.writelines("#!/bin/bash\n")
         try:
@@ -49,6 +50,10 @@ def run_job(function, job_file, code, slurm, modules):
             pass
         fout.writelines(code + "\n")
         fout.writelines("module purge\n")
+
+    if dry_run:
+        return 
+
     sbatch_out = subprocess.run([("sbatch " + str(job_file))], shell=True, stdout=PIPE, stderr=PIPE)
     time.sleep(3)
     if sbatch_out.returncode == 0:

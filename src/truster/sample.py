@@ -95,7 +95,6 @@ class Sample:
 
                 res = str(res)
                 max_size = str(max_size)
-                max_genes = str(max_genes)
                 
                 cwd = os.path.dirname(os.path.realpath(__file__))
                 cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size]
