@@ -22,59 +22,59 @@ def main(argv):
       elif opt in ("-o", "--outbam"):
          outbam = arg
 
-	infile = pysam.AlignmentFile(inbam, "rb")
-	# Create a list of tuples of type (sequence, cell barcode, UMI)
-	all_queries = []
-	for read in infile:
-	  seq = read.query_sequence
-	  cb = str([x[1] for x in read.tags if x[0] == "CB"][0])
-	  umi = str([x[1] for x in read.tags if x[0] == "UR"][0])
-	  query = (seq, cb, umi)
-	  all_queries.append(query)
+   infile = pysam.AlignmentFile(inbam, "rb")
+   # Create a list of tuples of type (sequence, cell barcode, UMI)
+   all_queries = []
+   for read in infile:
+     seq = read.query_sequence
+     cb = str([x[1] for x in read.tags if x[0] == "CB"][0])
+     umi = str([x[1] for x in read.tags if x[0] == "UR"][0])
+     query = (seq, cb, umi)
+     all_queries.append(query)
 
-	def CountFrequency(arr):
-	    return collections.Counter(arr)  
+   def CountFrequency(arr):
+       return collections.Counter(arr)  
 
-	# Use collections' Counter function to summarize the data on to 
-	# how many times a particular combination of sequence, barcode and UMI is found?
-	count_queries = CountFrequency(all_queries)
+   # Use collections' Counter function to summarize the data on to 
+   # how many times a particular combination of sequence, barcode and UMI is found?
+   count_queries = CountFrequency(all_queries)
 
-	# We need to re-organize this dictionary to have an easier way of retrieving the sequence 
-	# with the maximum number of occurances given a combination of barcode and UMI
-	#
-	# So we first do an empty dictionary of dictionaries with keys being a tuple of barcode and UMI
-	count_queries_organized = dict.fromkeys(set([(barcode, umi) for sequence,barcode, umi in count_queries.keys()]), {})
-	# Once we have that, we fill in the values (which are dictionaries. Keys being the sequences and values being the number of occurances)
-	for k,v in count_queries.items():
-		sequence = k[0]
-		barcode = k[1]
-		umi = k[2]
-		count = v
-		count_queries_organized[(barcode, umi)][sequence] = count
-	# Then we need to find the sequence with the maximum number of occurances given the barcode/UMI
-	# We start by defining an empty set of "winner" sequences
-	winners = set()
-	for barcode_umi, sequence_count in count_queries_organized.items():
-		# sequence_count - sequence : count dictionary of a given barcode/UMI
-		# Give me the sequence if its count is equal to the maximum number of occurances in that barcode/UMI 
-		sequences = [seq for seq,count in sequence_count.items() if count == max(sequence_count.values())] # The sequence (key) of the max value
-		# If there is more than one, sequences will be a list of sequences
-		# We cannot discard ties as there is no good way to pick, so we add them all as winners
-		for seq in sequences:
-			query_winner = (barcode_umi[0], barcode_umi[1], seq)
-			winners.add(query_winner)
+   # We need to re-organize this dictionary to have an easier way of retrieving the sequence 
+   # with the maximum number of occurances given a combination of barcode and UMI
+   #
+   # So we first do an empty dictionary of dictionaries with keys being a tuple of barcode and UMI
+   count_queries_organized = dict.fromkeys(set([(barcode, umi) for sequence,barcode, umi in count_queries.keys()]), {})
+   # Once we have that, we fill in the values (which are dictionaries. Keys being the sequences and values being the number of occurances)
+   for k,v in count_queries.items():
+      sequence = k[0]
+      barcode = k[1]
+      umi = k[2]
+      count = v
+      count_queries_organized[(barcode, umi)][sequence] = count
+   # Then we need to find the sequence with the maximum number of occurances given the barcode/UMI
+   # We start by defining an empty set of "winner" sequences
+   winners = set()
+   for barcode_umi, sequence_count in count_queries_organized.items():
+      # sequence_count - sequence : count dictionary of a given barcode/UMI
+      # Give me the sequence if its count is equal to the maximum number of occurances in that barcode/UMI 
+      sequences = [seq for seq,count in sequence_count.items() if count == max(sequence_count.values())] # The sequence (key) of the max value
+      # If there is more than one, sequences will be a list of sequences
+      # We cannot discard ties as there is no good way to pick, so we add them all as winners
+      for seq in sequences:
+         query_winner = (barcode_umi[0], barcode_umi[1], seq)
+         winners.add(query_winner)
 
-	# Renewing the conection with the input file and open the output file
-	infile = pysam.AlignmentFile(inbam, "rb")
-	outfile = pysam.AlignmentFile(outbam, "wb", template=infile)
-	for read in infile:
-	  seq = read.query_sequence
-	  cb = str([x[1] for x in read.tags if x[0] == "CB"][0])
-	  umi = str([x[1] for x in read.tags if x[0] == "UR"][0])
-	  query = (cb, umi, seq)
-	  # If the read is in the winners list, write it out
-	  if query in winners:
-	    outfile.write(read)
+   # Renewing the conection with the input file and open the output file
+   infile = pysam.AlignmentFile(inbam, "rb")
+   outfile = pysam.AlignmentFile(outbam, "wb", template=infile)
+   for read in infile:
+     seq = read.query_sequence
+     cb = str([x[1] for x in read.tags if x[0] == "CB"][0])
+     umi = str([x[1] for x in read.tags if x[0] == "UR"][0])
+     query = (cb, umi, seq)
+     # If the read is in the winners list, write it out
+     if query in winners:
+       outfile.write(read)
 
 
 if __name__ == "__main__":

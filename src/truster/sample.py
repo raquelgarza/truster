@@ -18,21 +18,22 @@ class Sample:
         self.raw_path = raw_path
         self.logfile = logfile
 
-    def quantify(self, cr_index, indir, outdir):
+    def quantify(self, cr_index, indir, outdir, nuclei = False):
         dry_run = False
         if not os.path.exists("quantify_scripts/"):
             os.makedirs("quantify_scripts", exist_ok=True)
-
         with open(self.logfile, "a") as log:
             try:
-                cmd = ["cellranger count", "--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir]
+                cmd = ["cellranger count"]
+                if nuclei:
+                    cmd.append("--include-introns")
+                cmd.extend(["--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir])
+                log.write("About to run instruction")
                 result = run_instruction(cmd = cmd, fun = "quantify", fun_module = "quantify", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
                 exit_code = result[1]
-
                 if exit_code == 0:
                     subprocess.call("mv", self.sample_id, outdir)
                     self.quantify_outdir = outdir
-                
                 return exit_code
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
@@ -83,7 +84,6 @@ class Sample:
 
     def empty_clusters(self):
         self.clusters = []
-        return
 
     def get_clusters(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size=500, dry_run = False):
         with open(self.logfile, "a") as log:

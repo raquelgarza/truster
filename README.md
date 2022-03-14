@@ -161,6 +161,15 @@ As an example:
 
 If you don't need to load any modules for a software to be available, you can leave the respective list empty.
 
+## Exit codes
+
+1: Sbatch signaling error
+2: The command ran failed
+3: Incorrect input 
+4: File not found
+True:
+False:
+
 ---
 You can read the functions' documentation and some tutorials at https://raquelgarza.github.io/truster/
 

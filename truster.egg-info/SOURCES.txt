@@ -1,14 +1,9 @@
 README.md
 mkdocs.yml
 setup.py
-docs/._.dnconfig
-docs/._index.md
-docs/._workflow.md
 docs/.dnconfig
 docs/index.md
 docs/workflow.md
-img/._approach.png
-img/._compositionAssociation.svg
 img/approach.png
 img/compositionAssociation.png
 img/compositionAssociation.svg
@@ -59,7 +54,6 @@ site/search/main.js
 site/search/search_index.json
 site/search/worker.js
 site/workflow/index.html
-src/truster/._experiment.py
 src/truster/__init__.py
 src/truster/bcolors.py
 src/truster/cluster.py
@@ -70,10 +64,10 @@ src/truster/__pycache__/__init__.cpython-37.pyc
 src/truster/__pycache__/bcolors.cpython-37.pyc
 src/truster/__pycache__/jobHandler.cpython-37.pyc
 src/truster/py_scripts/filterUMIs
+src/truster/py_scripts/filter_PCR_duplicates
 src/truster/py_scripts/plotTEexpression
 src/truster/py_scripts/plotVelocity
-src/truster/r_scripts/._get_clusters.R
-src/truster/r_scripts/._merge_samples.R
+src/truster/py_scripts/plotVelocity.py
 src/truster/r_scripts/get_clusters.R
 src/truster/r_scripts/merge_samples.R
 src/truster/r_scripts/normalize_TEexpression.R

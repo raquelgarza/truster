@@ -24,12 +24,12 @@ set.seed(10)
 # # 
 # 
 # mode = 'merged'
-# obj_name = "healthy"
+# obj_name = "tbi"
 # group_name = "all"
-# samples = c("Seq109_11","Seq109_12","Seq109_13","Seq109_14","Seq109_6")
-# outdir = '/Volumes/My Passport/TBI/13.07.21/3_mergeSamples/clusterPipeline/TE_counts_normalized/multiple/'
-# indir = '/Volumes/My Passport/TBI/13.07.21/3_mergeSamples/clusterPipeline/TE_counts/multiple/'
-# rds = '/Volumes/My Passport/TBI/13.07.21/3_mergeSamples/healthy.rds'
+# samples = c()
+# outdir = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/clusterPipeline/TE_counts_normalized/multiple/'
+# indir = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/clusterPipeline/TE_counts/multiple/'
+# rds = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/tbi.rds'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -84,7 +84,7 @@ colnames(cluster_sizes) <- c('cluster', 'cluster.size')
 files <- list.files(indir, recursive = F)
 if( mode == "merged"){
   # This might be a problem if for example we have a couple of samples called sample1 and sample11
-  files <- files[which(grepl(group_name, files))]
+  files <- files[which(grepl(paste(obj_name, group_name, sep="_"), files))]
   cluster_sizes$name <- paste(obj_name, paste(group_name, cluster_sizes$cluster, sep=".cluster_"), sep='_')
 }else{
   cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='.cluster_')
@@ -92,7 +92,7 @@ if( mode == "merged"){
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
-    cluster <- gsub("_", "", unlist(str_split(unlist(str_split(files[i], group_name))[2], ".cntTable"))[1])
+    cluster <- gsub("_", "", unlist(str_split(unlist(str_split(files[i], paste(obj_name, group_name, sep="_")))[2], ".cntTable"))[1])
     # sample = paste(obj_name, group, cluster, sep="_")
     name <- paste(obj_name, paste(group_name, cluster, sep=".cluster_"), sep="_") #paste(obj_name, cluster, sep=".cluster_")
     coldata <- rbind(coldata, data.frame(sample=obj_name, name = name, cluster=cluster)) 
@@ -157,6 +157,7 @@ cells_clusters$cell_ids <- rownames(cells_clusters)
 
 te_counts_size_norm_melt_percell <- merge(cells_clusters, te_counts_size_norm_melt, by='cluster', all = T)
 te_counts_size_norm_melt_percell <- reshape2::dcast(te_counts_size_norm_melt_percell, formula = te_id~cell_ids, value=value)
+
 rownames(te_counts_size_norm_melt_percell) <- te_counts_size_norm_melt_percell$te_id  
 te_counts_size_norm_melt_percell <- te_counts_size_norm_melt_percell[,-1]
 
