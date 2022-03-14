@@ -115,6 +115,98 @@ class Experiment:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
             with open(self.logfile, "a") as log:
                 log.write(msg)
+    def aggregate(self, indir, outdir, input_json = "", input_dict = dict(), jobs = 1):
+        """
+        ### SUMMARY ###
+
+        Author: Stein Acker
+
+        This method takes the output from cellranger count and runs cellranger aggr according 
+        to user specifications to generate sample aggregates for bioinformatic analysis.
+        Cellranger v6.0.0+ is required.
+
+        ### INPUT ###
+        
+        indir/outdir: The directory containing cellranger count results to aggregate and the 
+        directory to place the function output, respectively.
+
+        input_json/input_dict: A JSON file or Python dictionary (respectively) containing the 
+        aggregate names to be used and the names of the samples to be included in the aggregate.
+        The JSON/dict must be in the format:
+        {
+            "agg1" : [
+                "samp1",
+                "samp2",
+                "samp3"
+            ],
+            "agg2" : [
+                "samp4",
+                "samp5",
+                "samp6"
+            ]
+        }
+
+        jobs: The maximum number of SLURM jobs to be run concurrently.
+
+        ### WORKFLOW ###
+
+        For each desired aggregate, the method first creates an aggregate CSV file based 
+        on the information in the inputted dictionary or JSON file in the format 
+        required by cellranger. Then, it generates a SLURM job script and executes it if the 
+        maximum number of running jobs has not already been reached. If the maximum number
+        of jobs has been reached, then the method waits until one job has finished before 
+        submitting another.
+        """
+        try:
+            # Handling all the different inputs a user can give
+            if input_json == "" and input_dict == dict():
+                msg = Bcolors.HEADER + "Error: no JSON file or Python dictionary inputted" + Bcolors.ENDC + "\n" + ".\n"
+                with open(self.logfile, "a") as log:
+                    log.write(msg)
+                raise RuntimeError("No JSON file or Python dictionary inputted.")
+            elif not isinstance(input_json, str) and not isinstance(input_dict, dict):
+                msg = Bcolors.HEADER + "Error: please ensure your input is the correct type (dictionary for input_dict, string for input_json)" + Bcolors.ENDC + "\n" + ".\n"
+                with open(self.logfile, "a") as log:
+                    log.write(msg)
+                raise TypeError("Please ensure your input is the correct type (dictionary for input_dict, string for input_json).")
+            elif input_json != "" and input_dict != dict():
+                msg = Bcolors.HEADER + "Error: Either a JSON filepath OR a Python dictionary must be inputted, not both" + Bcolors.ENDC + "\n" + ".\n"
+                with open(self.logfile, "a") as log:
+                    log.write(msg)
+                raise RuntimeError("Either a JSON filepath OR a Python dictionary must be inputted, not both.")
+            elif input_json != "":
+                try:
+                    with open(input_json) as infile:
+                        try:
+                            input_samples = json.load(infile)
+                        except json.decoder.JSONDecodeError:
+                            msg = Bcolors.HEADER + f"Specified file {input_samples} is not a properly formatted JSON file" + Bcolors.ENDC + "\n" + ".\n"
+                            with open(self.logfile, "a") as log:
+                                log.write(msg)
+                except FileNotFoundError:
+                    msg = Bcolors.HEADER + f"Specified file {input_samples} does not exist" + Bcolors.ENDC + "\n" + ".\n"
+                    with open(self.logfile, "a") as log:
+                        log.write(msg)
+            elif input_dict != dict():
+                input_samples = input_dict
+    # Actually doing the bioinformatics
+            if not os.path.exists("aggregate_csvs"):
+                os.makedirs("aggregate_csvs", exist_ok = True)
+            self.samples = {}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                for output_sample in input_samples.keys():
+                    self.register_sample(sample_id=output_sample, sample_name="", raw_path="")
+                    aggr_csv = f"aggregate_csvs/{output_sample}_aggr.csv"
+                    with open(aggr_csv, "w") as f:
+                        f.write("sample_id,molecule_h5\n")
+                        for input_sample in input_samples[output_sample]:
+                            sample_indir = os.path.join(indir, input_sample, "outs/molecule_info.h5")
+                            f.write(f"{input_sample},{sample_indir}\n")
+                    executor.submit(self.samples[output_sample].aggregate, aggr_csv, outdir)
+        except KeyboardInterrupt:
+            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
+            with open(self.logfile, "a") as log:
+                log.write(msg)
 
     def set_quantification_outdir(self, sample_id, cellranger_outdir):
         self.samples[sample_id].set_quantification_outdir(cellranger_outdir)
@@ -193,6 +285,7 @@ class Experiment:
                 log.write(msg)
 
     def plot_velocity_merged(self, loom, names):
+        dry_run = False
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):

@@ -39,6 +39,37 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
+    def aggregate(self, aggr_csv, outdir):
+        """
+        ### SUMMARY ###
+
+        Author: Stein Acker
+
+        This method takes the output from cellranger count and runs cellranger aggr according 
+        to user specifications to generate sample aggregates for bioinformatic analysis.
+        Cellranger v6.0.0+ is required.
+
+        For more information, look at the description for this method's partner method,
+        Experiment.aggregate() in experiment.py.
+        """
+        dry_run = False
+        if not os.path.exists("aggregate_scripts/"):
+            os.makedirs("aggregate_scripts", exist_ok=True)
+        msg = Bcolors.HEADER + "Now running cellranger aggr on " + self.sample_id + Bcolors.ENDC + "\n" + ".\n"
+        with open(self.logfile, "a") as log:
+            log.write(msg)
+            try:
+                cmd = ["cellranger aggr", "--id", self.sample_id, "--csv", aggr_csv]
+                result = run_instruction(cmd = cmd, fun = "aggregate", fun_module = "aggregate", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
+                if exit_code == 0:
+                    subprocess.call("mv", self.sample_id, outdir)
+                    self.set_quantification_outdir(outdir) 
+                return exit_code
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                log.write(msg)
+
     def set_quantification_outdir(self, cellranger_outdir):
         self.quantify_outdir = cellranger_outdir
         with open(self.logfile, "a") as log:
@@ -64,6 +95,7 @@ class Sample:
                 log.write(msg)
 
     def plot_velocity(self, loom, indir, outdir):
+        dry_run = False
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
