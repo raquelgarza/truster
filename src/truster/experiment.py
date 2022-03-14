@@ -30,7 +30,7 @@ class Experiment:
                     msg = Bcolors.FAIL + "Error: Cluster configuration file not found" + Bcolors.ENDC + "\n"
                     print(msg)
                     log.write(msg)
-                    return 1
+                    return 4
 
             if modules_path != None:
                 try:
@@ -42,7 +42,7 @@ class Experiment:
                     msg = Bcolors.FAIL + "Error: Module configuration file not found" + Bcolors.ENDC + "\n"
                     print(msg)
                     log.write(msg)
-                    return 1
+                    return 4
 
     def register_sample(self, sample_id = "", sample_name = "", raw_path = ""):
         new_sample = {sample_id : Sample(slurm=self.slurm, modules = self.modules, sample_id = sample_id, sample_name = sample_name, raw_path = raw_path, logfile = self.logfile)}
@@ -87,14 +87,30 @@ class Experiment:
                 with open(self.logfile, "a") as log:
                     msg = "Registered samples: " + str(', '.join([sample.sample_id for sample in list(self.samples.values())]) + ".\n")
                     log.write(msg)
-
-    def quantify(self, cr_index, outdir, jobs=1):
+    # nuclei can be a dictionary with sample ids as keys and bools as values (if it's nuclei or not)
+    def quantify(self, cr_index, outdir, nuclei = False, jobs=1):
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                for sample in self.samples.values():
-                    sample_indir = sample.raw_path
-                    sample_outdir = os.path.join(outdir, sample.sample_id)
-                    executor.submit(sample.quantify, cr_index, sample_indir, sample_outdir)
+            with open(self.logfile, "a") as log:
+                sample_ids = [sample.sample_id for sample in self.samples.values()]
+                if isinstance(nuclei, dict):
+                    if all([isinstance(i, bool) for i in nuclei.values()]) and all([i in sample_ids for i in list(nuclei.keys())]):
+                        samples_nuclei = nuclei
+                    else:
+                        msg = Bcolors.FAIL + "nuclei needs to be a dictionary with sample ids as keys and booleans (if nuclei or not) as values." + Bcolors.ENDC + "\n" 
+                        log.write(msg)
+                        return 3
+                else:
+                    msg = Bcolors.FAIL + "nuclei needs to be a dictionary with sample ids as keys and booleans (if nuclei or not) as values." + Bcolors.ENDC + "\n" 
+                    log.write(msg)
+                    return 3
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                    for sample in self.samples.values():
+                        sample_indir = sample.raw_path
+                        sample_outdir = os.path.join(outdir, sample.sample_id)
+                        sample_nuclei = samples_nuclei[sample.sample_id]
+                        log.write("going to samples' quantify function")
+                        executor.submit(sample.quantify, cr_index, sample_indir, sample_outdir, sample_nuclei)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
             with open(self.logfile, "a") as log:
@@ -103,7 +119,7 @@ class Experiment:
     def set_quantification_outdir(self, sample_id, cellranger_outdir):
         self.samples[sample_id].set_quantification_outdir(cellranger_outdir)
 
-    def get_clusters_all_samples(self, outdir, groups = None, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, jobs=1):
+    def get_clusters_all_samples(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, dry_run = False, jobs=1):
         with open(self.logfile, "a") as log:
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -111,11 +127,13 @@ class Experiment:
                         sample_outdir = os.path.join(outdir, sample.sample_id)
                         res = str(res)
                         max_size = str(max_size)
-                        min_genes = str(min_genes)
-                        max_genes = str(max_genes)
+                        if min_genes is not None:
+                            min_genes = str(min_genes)
+                        if max_genes is not None:
+                            max_genes = str(max_genes)
                         
                         msg = "Clustering " + sample.sample_id + " using all cells.\n"
-                        executor.submit(sample.get_clusters, sample_outdir, group_name, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size)
+                        executor.submit(sample.get_clusters, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size, dry_run)
                         self.clusters_outdir = outdir
                         log.write(msg)
                 
@@ -147,7 +165,7 @@ class Experiment:
                     else:
                         msg = "Error: File not found. Please make sure that " + sample.quantify_outdir + " exists.\n"
                         log.write(msg)
-                        return 1
+                        return 4
                     executor.submit(sample.velocity, te_gtf, gene_gtf, sample_indir)
                 executor.shutdown(wait=True)
         except KeyboardInterrupt:
@@ -164,7 +182,7 @@ class Experiment:
                     else:
                         msg = "Error: File not found. Please make sure that " + sample.quantify_outdir + " exists.\n"
                         log.write(msg)
-                        return 1
+                        return 4
                     loom = os.path.join(sample.quantify_outdir, "velocyto", (sample.sample_id + ".loom"))
                     sample_outdir = os.path.join(sample.quantify_outdir, "velocyto", "plots")
                     executor.submit(sample.plot_velocity, loom, sample_indir, sample_outdir)
@@ -200,7 +218,7 @@ class Experiment:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
     
-    def merge_samples(self, outdir, normalization_method, integrate_samples = "FALSE", max_size=500):
+    def merge_samples(self, outdir, normalization_method, res = 0.5, integrate_samples = False, max_size=500, dry_run = False):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
@@ -224,7 +242,13 @@ class Experiment:
             # and output (-o) of the output directory desired, -s for sample ids,
             # and -e for sample names used in cellranger
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samples_seurat_rds), "-o", outdir, "-s", ','.join(samples_ids), "-e", self.name, "-n", normalization_method, "-S", max_size, "-I", integrate_samples]
+            
+            if integrate_samples:
+                integrate_samples = "TRUE"
+            else:
+                integrate_samples = "FALSE"
+
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samples_seurat_rds), "-o", outdir, "-r", str(res), "-s", ','.join(samples_ids), "-e", self.name, "-n", normalization_method, "-S", max_size, "-I", integrate_samples]
             result = run_instruction(cmd = cmd, fun = "merge_samples", name = self.name, fun_module = "merge_samples", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
             exit_code = result[1]
                 
@@ -298,7 +322,7 @@ class Experiment:
                 msg = "Please specify a mode (merged/per_sample).\n"
                 print(msg)
                 log.write(msg)
-                return 2
+                return 3
 
         with open(self.logfile, "a") as log:
             try:    
@@ -314,7 +338,7 @@ class Experiment:
                             else:
                                 msg = "Error: File not found. Please make sure that " + sample.quantify_outdir + " exists.\n"
                                 log.write(msg)
-                                return 1
+                                return 4
                             outdir_sample = os.path.join(outdir, "tsv_to_bam/", sample_id)
                             self.tsv_to_bam_results.append(executor.submit(cluster.tsv_to_bam, sample_id, bam, outdir_sample, self.slurm, self.modules))
 
@@ -346,7 +370,7 @@ class Experiment:
                 msg = "Please specify a mode (merged/per_sample).\n"
                 print(msg)
                 log.write(msg)
-                return 2
+                return 3
 
         with open(self.logfile, "a") as log:
             try:
@@ -388,7 +412,7 @@ class Experiment:
                 msg = "Please specify a mode (merged/per_sample).\n"
                 print(msg)
                 log.write(msg)
-                return 2
+                return 3
         with open(self.logfile, "a") as log:
             try:
                 self.bam_to_fastq_results = []
@@ -428,7 +452,7 @@ class Experiment:
                 msg = "Please specify a mode (merged/per_sample).\n"
                 print(msg)
                 log.write(msg)
-                return
+                return 3
         with open(self.logfile, "a") as log:
             try:
                 self.concatenate_lanes_results = []
@@ -457,7 +481,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def merge_clusters(self, outdir, groups = {"merged_cluster": "all"}):
+    def merge_clusters(self, outdir, groups):
         with open(self.logfile, "a") as log:
             def merge_cluster_per_group(group, group_name):
                 merge_samples_lists_clusters = [samples_clusters.clusters for sample_id, samples_clusters in self.merge_samples.items() if sample_id in group]
@@ -514,20 +538,17 @@ class Experiment:
                 # If you dont want all samples together (maybe you want to group by condition)
                 # Please provide a list of lists with the groups you want to make
                 merge_cluster_per_group_out = []
-                if list(groups.values())[0] == "all":
-                    group = list(self.merge_samples.keys())
-                    merge_cluster_per_group_out.append(merge_cluster_per_group(group, "merged_cluster"))
-                else:
-                    for group_name, group in groups.items():
-                        log.write("Running merge_clusters for samples " + str(group) + ", members of group " + group_name)
-                        if all([sample_id in self.merge_samples.keys() for sample_id in group]):
-                            log.write("All samples of group " + group_name + " have been found registered.")
-                            merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_name))
-                        else:
-                            msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
-                            log.write(msg)
+                # if list(groups.keys())[0] == "merged_cluster":
+                #     group = list(self.merge_samples.keys())
+                #     merge_cluster_per_group_out.append(merge_cluster_per_group(group, "merged_cluster"))
+                # else:
+                for group_name, group in groups.items():
+                    log.write("Running merge_clusters for samples " + str(group) + ", members of group " + group_name)
+                    if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                        log.write("All samples of group " + group_name + " have been found registered.")
+                        merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_name))
                     else:
-                        msg = "The list of groups and the list of the name of the groups should be of equal length."
+                        msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
                         log.write(msg)
                 if all(merge_cluster_per_group_out):
                     delattr(self, "merge_samples")
@@ -565,31 +586,27 @@ class Experiment:
 
                 self.merge_samples_groups[group_name] = merge_clusters
                 self.outdir_merged_clusters_groups[group_name] = outdir_merged_clusters
-                log.write("self.merge_samples_groups[" + group_name + "] is now " + str(merge_clusters) + "\n\n\n")
-                
+                log.write("self.merge_samples_groups[" + group_name + "] is now " + str(merge_clusters) + "\n\n\n")     
             try:
                 if not os.path.exists(outdir_merged_clusters):
                     log.write("Directory not found: " + outdir_merged_clusters + " does not exist.")
-                    return 2
+                    return 4
 
                 set_merge_cluster_per_group_out = []
                 log.write("Groups: " + str(groups.values()) + "\n")
                 log.write("Group names: " + str(groups.keys()) + "\n")
-                if list(groups.keys())[0] == "all":
-                    group = list(self.merge_samples.keys())
-                    set_merge_cluster_per_group(group, "merged_cluster")
-                else:
-                    # if len(groups) == len(group_names):
-                    for group_name, group in groups.items():
-                        # group = groups[i]
-                        # group_name = group_names[i]
-                        if all([sample_id in self.merge_samples.keys() for sample_id in group]):
-                            set_merge_cluster_per_group(group, group_name)
-                        else:
-                            msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
-                            log.write(msg)
+                # if list(groups.keys())[0] == "merged_cluster":
+                #     group = list(self.merge_samples.keys())
+                #     set_merge_cluster_per_group(group, "merged_cluster")
+                # else:
+                # if len(groups) == len(group_names):
+                for group_name, group in groups.items():
+                    # group = groups[i]
+                    # group_name = group_names[i]
+                    if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                        set_merge_cluster_per_group(group, group_name)
                     else:
-                        msg = "The list of groups and the list of the name of the groups should be of equal length."
+                        msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
                         log.write(msg)
 
                 delattr(self, "merge_samples")
@@ -618,21 +635,20 @@ class Experiment:
                                 fastq_dir = os.path.join(outdir, "merged_cluster/")
                                 map_outdir = os.path.join(outdir, "map_cluster/", subdirectory)
                                 self.map_cluster_results.append(executor.submit(cluster.map_cluster, "Merged", fastq_dir, map_outdir, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
-                else:
-                    if mode == "per_sample":
-                        samples_dict = self.samples
+                elif mode == "per_sample":
+                    samples_dict = self.samples
 
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
-                            for sample_id, sample in samples_dict.items():
-                                for cluster in sample.clusters:
-                                    fastq_dir = os.path.join(outdir, "concatenate_lanes/", sample_id)
-                                    outdir_sample = os.path.join(outdir, "map_cluster/", subdirectory, sample_id)
-                                    self.map_cluster_results.append(executor.submit(cluster.map_cluster, sample_id, fastq_dir, outdir_sample, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
-                    else:
-                        msg = "Please specify a mode (merged/per_sample).\n"
-                        print(msg)
-                        log.write(msg)
-                        return 2
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                        for sample_id, sample in samples_dict.items():
+                            for cluster in sample.clusters:
+                                fastq_dir = os.path.join(outdir, "concatenate_lanes/", sample_id)
+                                outdir_sample = os.path.join(outdir, "map_cluster/", subdirectory, sample_id)
+                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, sample_id, fastq_dir, outdir_sample, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
+                else:
+                    msg = "Please specify a mode (merged/per_sample).\n"
+                    print(msg)
+                    log.write(msg)
+                    return 3
 
                 map_cluster_exit_codes = [i.result()[1] for i in self.map_cluster_results]
                 map_cluster_allSuccess = all(exit_code == 0 for exit_code in map_cluster_exit_codes)
@@ -686,7 +702,7 @@ class Experiment:
                         msg = "Please specify a mode (merged/per_sample).\n"
                         print(msg)
                         log.write(msg)
-                        return 2
+                        return 3
                
                 TE_counts_exit_codes = [i.result()[1] for i in self.TE_counts_results]
                 TE_counts_all_success = all(exit_code == 0 for exit_code in TE_counts_exit_codes)
@@ -704,37 +720,21 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalize_TE_counts(self, mode, outdir, groups, unique=False, jobs=1):
+    def normalize_TE_counts(self, mode, outdir, groups, unique=False, dry_run=False, jobs=1):
         print("Running normalize_TE_counts with " + str(jobs) + " jobs.\n")
-        def normalize_TE_counts_per_merged_group(group_name, indir, outdir_norm):
+        def normalize_TE_counts_per_merged_group(group_name, group, indir, outdir_norm, dry_run):
             rdata = os.path.join(self.merge_samples_outdir, (self.name + ".rds"))
 
-            if not os.path.exists("merged_samples_norm_scripts"):
-                os.makedirs("merge_samples_norm_scripts", exist_ok=True)
+            if not os.path.exists("normalize_TE_counts_scripts"):
+                os.makedirs("normalize_TE_counts_scripts", exist_ok=True)
             if not os.path.exists(outdir_norm):
                 os.makedirs(outdir_norm, exist_ok=True)
             
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-s", ','.join(groups[group_name]), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", self.name]
-
-            result = run_instruction(cmd = cmd, fun = "normalize_TE_expression", fun_module = "normalize_TE_expression", dry_run = dry_run, name = self.name, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
-            return result
-            exit_code = result[1]
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
+            result = run_instruction(cmd = cmd, fun = "normalize_TE_counts", fun_module = "normalize_TE_counts", dry_run = dry_run, name = (self.name + "_" + group_name), logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+            return result[1]
             
-            if exit_code == 0:
-                exit_code = True
-            
-            self.merge_normalized_outdir = outdir_norm
-
-            if exit_code:
-                msg = "\nTE normalization finished succesfully!\n"
-                log.write(msg)
-                return exit_code
-            else:
-                msg = "\nTE normalization did not finished succesfully.\n"
-                log.write(msg)
-                return exit_code
-
         with open(self.logfile, "a") as log:
             msg = "Normalizing TE counts.\n"
             log.write(msg)
@@ -753,17 +753,23 @@ class Experiment:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     if mode == "merged":
                         for group_name, group in groups.items():
-                            self.normalized_results.append(executor.submit(normalize_TE_counts_per_merged_group, group_name, indir, outdir_norm))
-                        normalized_exit_codes = [i.result() for i in self.normalized_results]
-                        normalized_all_success = all(normalized_exit_codes)
+                            # if group_name == "merged_cluster":
+                            #     log.write(str(self.merge_cluster_per_group_out))
+                            #     group = self.merge_cluster_per_group_out[group_name]
+                            if len(list(groups.keys())) == 1:
+                                group_name = "merged_cluster"
+                            self.normalized_results.append(executor.submit(normalize_TE_counts_per_merged_group, group_name, group, indir, outdir_norm, dry_run))
+                        log.write(str(self.normalized_results))
+                        normalized_exit_codes = [i.result()[1] for i in self.normalized_results]
+                        normalized_all_success = not all(normalized_exit_codes) # Exit code of zero indicates success
                     else:
                         for sample in list(self.samples.values()):
                             sample_indir = os.path.join(indir, sample.sample_id)
                             sample_outdir = os.path.join(outdir_norm, sample.sample_id)
-                            self.normalized_results.append(executor.submit(sample.normalize_TE_counts, sample_indir, sample_outdir))
+                            self.normalized_results.append(executor.submit(sample.normalize_TE_counts, sample_indir, sample_outdir, dry_run))
                             sample.normalized_outdir = sample_outdir
-                        normalized_exit_codes = [i.result() for i in self.normalized_results]
-                        normalized_all_success = all(exit_code == 0 for exit_code in normalized_exit_codes)
+                        normalized_exit_codes = [i.result()[1] for i in self.normalized_results]
+                        normalized_all_success = not all(normalized_exit_codes)
 
                 if normalized_all_success:
                     msg = "\nTE normalization finished succesfully for all groups/samples!\n"
@@ -778,7 +784,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = {"all" : "merged_cluster"}, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -793,7 +799,7 @@ class Experiment:
                         msg = "Please specify a mode (merged/per_sample)"
                         print(msg)
                         log.write(msg)
-                        return 2
+                        return 3
 
                 if tsv_to_bam:
                     current_instruction = "tsv_to_bam"
@@ -804,7 +810,7 @@ class Experiment:
                         msg = "Error in tsv_to_bam"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
                 if filter_UMIs:
                     current_instruction = "filter_UMIs"
@@ -815,7 +821,7 @@ class Experiment:
                         msg = "Error in filter_UMIs"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
                     
                 if bam_to_fastq:
                     current_instruction = "bam_to_fastq"
@@ -826,7 +832,7 @@ class Experiment:
                         msg = "Error in bam_to_fastq"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
                 if concatenate_lanes:
                     current_instruction = "concatenate_lanes"
@@ -837,9 +843,15 @@ class Experiment:
                         msg = "Error in concatenate_lanes"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
                 if mode == "merged" and merge_clusters:
+                    # Please specify as a dictionary of strings : list
+                    if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
+                        msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
+                        log.write(msg)
+                        return 3
+
                     self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
                     self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
 
@@ -851,17 +863,24 @@ class Experiment:
                         msg = "Error in merge_clusters"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
+                    finished_on_the_run_merge_clusters = True
+                # If you want merged samples, you have to register the groups to merge the clusters of
+                # the samples in each group. If it the function merge_clusters was finished on the run,
+                # there is no need to repeat the operation.
+                if mode == "merged" and not finished_on_the_run_merge_clusters:
+                    if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
+                        msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
+                        log.write(msg)
+                        return 3 
+
+                    self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
+                    self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
+
+                    self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
                     finished_on_the_run_merge_clusters = True
 
                 if map_cluster:
-                    if mode == "merged" and not finished_on_the_run_merge_clusters:
-                        self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
-                        self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
-
-                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
-                        finished_on_the_run_merge_clusters = True
-
                     current_instruction = "map_cluster"
                     msg = "merge_clusters finished! Moving on to " + current_instruction
                     log.write(msg)
@@ -870,16 +889,9 @@ class Experiment:
                         msg = "Error in map_cluster"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
                 if TE_counts:
-                    if mode == "merged" and not finished_on_the_run_merge_clusters:
-                        self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
-                        self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
-
-                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
-                        finished_on_the_run_merge_clusters = True
-
                     current_instruction = "TE_counts"
                     msg = "map_cluster finished! Moving on to " + current_instruction
                     log.write(msg)
@@ -888,16 +900,9 @@ class Experiment:
                         msg = "Error in TE_counts"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
                 if normalize_TE_counts:
-                    if mode == "merged" and not finished_on_the_run_merge_clusters:
-                        self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
-                        self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
-
-                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
-                        finished_on_the_run_merge_clusters = True
-
                     current_instruction = "normalize_TE_counts"
                     msg = "TE_counts finished! Moving on to " + current_instruction
                     log.write(msg)
@@ -906,7 +911,7 @@ class Experiment:
                         msg = "Error in normalize_TE_counts"
                         print(msg)
                         log.write(msg)
-                        return 1
+                        return False
 
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
