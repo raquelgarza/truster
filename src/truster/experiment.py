@@ -284,8 +284,7 @@ class Experiment:
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
-    def plot_velocity_merged(self, loom, names):
-        dry_run = False
+    def plot_velocity_merged(self, loom, names, dry_run=False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):

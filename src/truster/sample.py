@@ -39,7 +39,7 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def aggregate(self, aggr_csv, outdir):
+    def aggregate(self, aggr_csv, outdir, dry_run=False):
         """
         ### SUMMARY ###
 
@@ -52,7 +52,6 @@ class Sample:
         For more information, look at the description for this method's partner method,
         Experiment.aggregate() in experiment.py.
         """
-        dry_run = False
         if not os.path.exists("aggregate_scripts/"):
             os.makedirs("aggregate_scripts", exist_ok=True)
         msg = Bcolors.HEADER + "Now running cellranger aggr on " + self.sample_id + Bcolors.ENDC + "\n" + ".\n"
@@ -94,8 +93,7 @@ class Sample:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
                 log.write(msg)
 
-    def plot_velocity(self, loom, indir, outdir):
-        dry_run = False
+    def plot_velocity(self, loom, indir, outdir, dry_run=False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("velocity_scripts/"):
