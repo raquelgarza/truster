@@ -27,12 +27,12 @@ class Sample:
                 cmd = ["cellranger count"]
                 if nuclei:
                     cmd.append("--include-introns")
-                cmd.extend(["--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir])
+                cmd.extend(["--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir, " || exit 2\nmv", self.sample_id, outdir])
                 log.write("About to run instruction")
                 result = run_instruction(cmd = cmd, fun = "quantify", fun_module = "quantify", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
                 exit_code = result[1]
                 if exit_code == 0:
-                    subprocess.call("mv", self.sample_id, outdir)
+                    # subprocess.call("mv", self.sample_id, outdir)
                     self.quantify_outdir = outdir
                 return exit_code
             except KeyboardInterrupt:

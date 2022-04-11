@@ -27,8 +27,8 @@ set.seed(10)
 # obj_name = "fetalcortex"
 # group_name = "all"
 # samples = c("DA094", "DA103", "DA140", "Seq095_2", "Seq098_2")
-# outdir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster/clusterPipeline_per_cluster/TE_counts_normalized/multiple/'
-# indir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster/clusterPipeline_per_cluster/TE_counts/multiple/'
+# outdir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster_perCellCycle/clusterPipeline/TE_counts_normalized/multiple/'
+# indir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster_perCellCycle/clusterPipeline/TE_counts/multiple/'
 # rds = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCellCycle/fetalcortex_cellcycle.rds'
 
 option_list = list(
@@ -92,25 +92,25 @@ cluster_sizes <- data.frame(cluster.size=table(FetchData(seurat.obj, "groupping_
 colnames(cluster_sizes) <- c('cluster', 'cluster.size')
 
 files <- list.files(indir, recursive = F)
+
 if( mode == "merged"){
   # This might be a problem if for example we have a couple of samples called sample1 and sample11
   files <- files[which(grepl(paste(obj_name, group_name, sep="_"), files))]
-  cluster_sizes$name <- paste(obj_name, paste(group_name, cluster_sizes$cluster, sep=".cluster_"), sep='_')
+  cluster_sizes$name <- paste(obj_name, group_name, cluster_sizes$cluster, sep='_')
 }else{
-  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='.cluster_')
+  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
 }
+
 coldata <- data.frame()
 for(i in 1:length(files)){
   if(mode == 'merged'){
-    cluster <- gsub("_", "", unlist(str_split(unlist(str_split(files[i], paste(obj_name, group_name, sep="_")))[2], ".cntTable"))[1])
-    # sample = paste(obj_name, group, cluster, sep="_")
-    name <- paste(obj_name, paste(group_name, cluster, sep=".cluster_"), sep="_") #paste(obj_name, cluster, sep=".cluster_")
+    cluster <- unlist(str_split(unlist(str_split(files[i], paste(obj_name, group_name, "", sep="_")))[2], "_.cntTable"))[1]
+    name <- paste(obj_name, group_name, cluster, sep="_") 
     coldata <- rbind(coldata, data.frame(sample=obj_name, name = name, cluster=cluster)) 
   }else{
     file_name <- sub("_$", "", sapply(str_split(files[i], '.cntTable'), `[[`, 1))
-    # sample <- unlist(str_split(file_name, '_clusters'))[1]
-    cluster <- unlist(str_split(file_name, 'clusters_'))[2]
-    name <- paste(obj_name, cluster, sep=".cluster_")
+    cluster <- unlist(str_split(file_name, '_'))[2]
+    name <- paste(obj_name, cluster, sep="_")
     coldata <- rbind(coldata, data.frame(sample=obj_name, name=name, cluster=cluster))
     
   }
@@ -147,9 +147,6 @@ cluster_total_num_reads <- function(cluster){
 }
 coldata$num_reads <- sapply(coldata$cluster, FUN = cluster_total_num_reads)
 
-# colnames(num_reads) <- c('sample', 'num_reads')
-# rownames(num_reads) <- num_reads$sample
-
 TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENS'))
 
 rownames(coldata) <- coldata$name
@@ -160,7 +157,6 @@ te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], c
 te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
 te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id')))
 te_counts_size_norm_melt$cluster <- sapply(str_split(te_counts_size_norm_melt$variable, ".cluster_"),`[[`, 2)
-# te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable),`[[`, 2))
 
 cells_clusters <- FetchData(seurat.obj, vars = "groupping_factor")
 colnames(cells_clusters) <- "cluster"
