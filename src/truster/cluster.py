@@ -121,7 +121,7 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def TE_count(self, experiment_name, sample_id, bam, outdir, gene_gtf, te_gtf, unique=False, slurm=None, modules=None, dry_run = False):
+    def TE_count(self, experiment_name, sample_id, bam, outdir, gene_gtf, te_gtf, s=1, unique=False, slurm=None, modules=None, dry_run = False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("TE_count_scripts"):
@@ -130,9 +130,16 @@ class Cluster:
                     os.makedirs(outdir, exist_ok=True)
                 
                 if unique:
-                    cmd = ["featureCounts", "-s", str(1), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), bam]
+                    cmd = ["featureCounts", "-s", str(s), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), bam]
                 else:
-                    cmd = ["TEcount", "-b", bam, "--GTF", gene_gtf, "--TE", te_gtf, "--format", "BAM", "--stranded", "yes", "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_"))]
+                    if s == 1:
+                        stranded = "yes"
+                    elif s == 2:
+                        stranded = "reverse"
+                    elif s == 0:
+                        stranded = "no"
+                        
+                    cmd = ["TEcount", "-b", bam, "--GTF", gene_gtf, "--TE", te_gtf, "--format", "BAM", "--stranded", stranded, "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_"))]
                 
                 if unique:
                     function_name = "TE_count_unique"

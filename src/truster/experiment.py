@@ -666,7 +666,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
         
-    def TE_counts_clusters(self, mode, outdir, gene_gtf, te_gtf, unique=False, jobs=1):
+    def TE_counts_clusters(self, mode, outdir, gene_gtf, te_gtf, unique=False, s=1, jobs=1):
         print("Running TE_counts with " + str(jobs) + " jobs.\n")
         if unique:
             subdirectory = "unique"
@@ -686,7 +686,7 @@ class Experiment:
                             for cluster in clusters.values():
                                 bam = os.path.join(outdir, "map_cluster/", subdirectory, (cluster.cluster_name + "_Aligned.sortedByCoord.out.bam"))
                                 outdir_sample = os.path.join(outdir, "TE_counts/", subdirectory)
-                                self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, "Merged", bam, outdir_sample, gene_gtf, te_gtf, unique, self.slurm, self.modules))
+                                self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, "Merged", bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules))
                 else:
                     if mode == "per_sample":
                         samples_dict = self.samples
@@ -696,7 +696,7 @@ class Experiment:
                                 for cluster in sample.clusters:
                                     bam = os.path.join(outdir, "map_cluster/", subdirectory, sample_id, (cluster.cluster_name + "_Aligned.sortedByCoord.out.bam"))
                                     outdir_sample = os.path.join(outdir, "TE_counts/", subdirectory, sample_id)
-                                    self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, sample_id, bam, outdir_sample, gene_gtf, te_gtf, unique, self.slurm, self.modules))
+                                    self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, sample_id, bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules))
                             
                     else:
                         msg = "Please specify a mode (merged/per_sample).\n"
@@ -720,7 +720,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalize_TE_counts(self, mode, outdir, groups, unique=False, dry_run=False, jobs=1):
+    def normalize_TE_counts(self, mode, outdir, groups, factor="seurat_clusters", unique=False, dry_run=False, jobs=1):
         print("Running normalize_TE_counts with " + str(jobs) + " jobs.\n")
         def normalize_TE_counts_per_merged_group(group_name, group, indir, outdir_norm, dry_run):
             rdata = os.path.join(self.merge_samples_outdir, (self.name + ".rds"))
@@ -731,7 +731,7 @@ class Experiment:
                 os.makedirs(outdir_norm, exist_ok=True)
             
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-f", factor, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
             result = run_instruction(cmd = cmd, fun = "normalize_TE_counts", fun_module = "normalize_TE_counts", dry_run = dry_run, name = (self.name + "_" + group_name), logfile = self.logfile, slurm = self.slurm, modules = self.modules)
             return result[1]
             
@@ -760,7 +760,7 @@ class Experiment:
                                 group_name = "merged_cluster"
                             self.normalized_results.append(executor.submit(normalize_TE_counts_per_merged_group, group_name, group, indir, outdir_norm, dry_run))
                         log.write(str(self.normalized_results))
-                        normalized_exit_codes = [i.result()[1] for i in self.normalized_results]
+                        normalized_exit_codes = [i.result() for i in self.normalized_results]
                         normalized_all_success = not all(normalized_exit_codes) # Exit code of zero indicates success
                     else:
                         for sample in list(self.samples.values()):
@@ -768,7 +768,7 @@ class Experiment:
                             sample_outdir = os.path.join(outdir_norm, sample.sample_id)
                             self.normalized_results.append(executor.submit(sample.normalize_TE_counts, sample_indir, sample_outdir, dry_run))
                             sample.normalized_outdir = sample_outdir
-                        normalized_exit_codes = [i.result()[1] for i in self.normalized_results]
+                        normalized_exit_codes = [i.result() for i in self.normalized_results]
                         normalized_all_success = not all(normalized_exit_codes)
 
                 if normalized_all_success:
@@ -784,7 +784,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -895,7 +895,7 @@ class Experiment:
                     current_instruction = "TE_counts"
                     msg = "map_cluster finished! Moving on to " + current_instruction
                     log.write(msg)
-                    TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, jobs = jobs)
+                    TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, s = s, jobs = jobs)
                     if not TE_counts:
                         msg = "Error in TE_counts"
                         print(msg)
@@ -906,7 +906,7 @@ class Experiment:
                     current_instruction = "normalize_TE_counts"
                     msg = "TE_counts finished! Moving on to " + current_instruction
                     log.write(msg)
-                    normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, unique = unique, jobs = jobs)
+                    normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, factor = factor, unique = unique, jobs = jobs)
                     if not normalize_TE_counts:
                         msg = "Error in normalize_TE_counts"
                         print(msg)
