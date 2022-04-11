@@ -24,12 +24,12 @@ set.seed(10)
 # # 
 # 
 # mode = 'merged'
-# obj_name = "tbi"
+# obj_name = "fetalcortex"
 # group_name = "all"
-# samples = c()
-# outdir = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/clusterPipeline/TE_counts_normalized/multiple/'
-# indir = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/clusterPipeline/TE_counts/multiple/'
-# rds = '/Volumes/My Passport/TBI/Yogita_run/3_combinedUMAP_perCluster/tbi.rds'
+# samples = c("DA094", "DA103", "DA140", "Seq095_2", "Seq098_2")
+# outdir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster/clusterPipeline_per_cluster/TE_counts_normalized/multiple/'
+# indir = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCluster/clusterPipeline_per_cluster/TE_counts/multiple/'
+# rds = '/Volumes/My Passport/FetalCortex/30.03.22/3_combinedUMAP_perCellCycle/fetalcortex_cellcycle.rds'
 
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
@@ -40,6 +40,8 @@ option_list = list(
               help="Sample id or name", metavar="character"),
   make_option(c("-g", "--groupName"), type="character", default=NULL,
               help="Group name", metavar="character"),
+  make_option(c("-f", "--byFactor"), type="character", default="seurat_clusters",
+              help="Groupping factor (Default = seurat_clusters)", metavar="character"),
   make_option(c("-s", "--samples"), type="character", default=NULL,
               help="Sample ids in the group (comma delimited)", metavar="character"),
   make_option(c("-i", "--indir"), type="character", default=NULL,
@@ -60,6 +62,7 @@ mode <- trimws(opt$mode)
 rds <- opt$RDS
 obj_name <- opt$name
 group_name <- opt$groupName
+by_factor <- if(grepl(",", opt$byFactor)) unlist(str_split(opt$byFactor, ",")) else opt$byFactor
 samples <- unlist(str_split(opt$samples, ","))
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
 outdir <- ifelse(endsWith(opt$outdir, "/"), opt$outdir, paste(opt$outdir, '/', sep=''))
@@ -73,12 +76,19 @@ print(c("RDS to be used: ", rds))
 print(c("Input path: ", indir))
 print(c("Output path: ", outdir))
 
+# Load object
 seurat.obj <- readRDS(rds)
+# Keeping only the samples that are supposed to be included (only in case of it being more than one sample in the object)
 if(mode == "merged"){
   seurat.obj <- subset(seurat.obj, orig.ident %in% samples)  
 }
 
-cluster_sizes <- data.frame(cluster.size=table(seurat.obj@active.ident))  
+# If there are more than one grouping factor, create one metadata column for the different combinations of it. If there is just one factor, the metadata column will be called the same
+factors_by_cell <- FetchData(seurat.obj, vars = by_factor)
+factors_by_cell$groupping_factor <- apply(factors_by_cell, 1, function(x) paste(x, collapse = "_"));
+seurat.obj <- AddMetaData(seurat.obj, metadata = factors_by_cell$groupping_factor, col.name = "groupping_factor")
+  
+cluster_sizes <- data.frame(cluster.size=table(FetchData(seurat.obj, "groupping_factor")))  
 colnames(cluster_sizes) <- c('cluster', 'cluster.size')
 
 files <- list.files(indir, recursive = F)
@@ -132,7 +142,8 @@ coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
 
 cluster_total_num_reads <- function(cluster){
-  return(sum(rowSums(FetchData(subset(seurat.obj, seurat_clusters == cluster), vars=rownames(seurat.obj)))))
+  tmp <- FetchData(seurat.obj, vars=c(rownames(seurat.obj), "groupping_factor") )
+  return(sum(rowSums(tmp[which(tmp[,"groupping_factor"] == cluster), rownames(seurat.obj)])))
 }
 coldata$num_reads <- sapply(coldata$cluster, FUN = cluster_total_num_reads)
 
@@ -151,7 +162,7 @@ te_counts_size_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id
 te_counts_size_norm_melt$cluster <- sapply(str_split(te_counts_size_norm_melt$variable, ".cluster_"),`[[`, 2)
 # te_counts_size_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_norm_melt$variable),`[[`, 2))
 
-cells_clusters <- data.frame(seurat.obj$seurat_clusters)
+cells_clusters <- FetchData(seurat.obj, vars = "groupping_factor")
 colnames(cells_clusters) <- "cluster"
 cells_clusters$cell_ids <- rownames(cells_clusters)
 
