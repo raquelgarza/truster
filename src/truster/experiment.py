@@ -79,7 +79,7 @@ class Experiment:
                 elif isinstance(indir, str):
                     if os.path.isdir(indir):
                         self.samples = path_to_samples(indir)
-                        msg = "Registered from " + path + "\n"
+                        msg = "Registered from " + indir + "\n"
                         log.write(msg)
                 else:
                     msg = "When registering samples from path: indir does not exist (Check " + path + ")\n"
@@ -585,10 +585,7 @@ class Experiment:
                     group = list(self.merge_samples.keys())
                     merge_cluster_per_group_out.append(merge_cluster_per_group(group, "merged_cluster"))
                 else:
-                    # if len(groups) == len(group_names):
                     for group_name, group in groups.items():
-                        # group = groups[i]
-                        # group_name = group_names[i]
                         log.write("Running merge_clusters for samples " + str(group) + ", members of group " + group_name)
                         if all([sample_id in self.merge_samples.keys() for sample_id in group]):
                             log.write("All samples of group " + group_name + " have been found registered.")
@@ -596,6 +593,7 @@ class Experiment:
                         else:
                             msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
                             log.write(msg)
+                            return False
                     else:
                         msg = "The list of groups and the list of the name of the groups should be of equal length."
                         log.write(msg)
