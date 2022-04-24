@@ -4,3 +4,5 @@ test/3_merge_samples/cluster_pipeline/merged_cluster/*.fastq.gz
 test/src/test.log
 *dnconfig*
 *dnhistory*
+*I1_001.fastq.gz
+*R1_001.fastq.gz
