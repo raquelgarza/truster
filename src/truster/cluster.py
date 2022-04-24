@@ -123,8 +123,36 @@ class Cluster:
                     os.makedirs("concatenate_lanes_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
-    
-                cmd = ["cat", os.path.join(indir, self.cluster_name, "*/*_R2_001.fastq.gz"), ">", os.path.join(outdir, (self.cluster_name + "_R2.fastq.gz"))]
+
+                # Initialize the list of files to concatenate
+                files_to_concatenate = []
+                library_names = []
+                # Walk through the files in the indir
+                for root, subdirs, files in os.walk(os.path.join(indir, self.cluster_name)):
+                    # If there is more than one subdirectory, we could be dealing with different library types
+                    # The subdirectories have the form of sampleid_0_1_ID
+                    for subdir in subdirs:
+                        # We use sample_id to split as sample_id might contain underscores
+                        library_type = subdir.split(sample_id)[1].split("_")[1:3]
+                        if library_type == ["0", "1"]: # Gene expression
+                            # For each of the gene expression libraries found in this sample, we walk through the files
+                            for root_in_subdir, subdirs_in_subdir, files_in_subdir in os.walk(os.path.join(indir, self.cluster_name, subdir)):
+                                for file in files_in_subdir:
+                                    if(file.endswith("R2_001.fastq.gz")): # If it's a sequence file, we want to concatenate
+                                        files_to_concatenate.append(os.path.join(indir, self.cluster_name, root_in_subdir, file))
+                                        library_names.append(subdir)
+                
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                
+                fastq_out = os.path.join(outdir, (self.cluster_name + "_R2.fastq.gz"))
+                # We don't want to keep appending to an existing file...
+                if os.path.exists(fastq_out):
+                    print(f"Output file {fastq_out} exists. Please delete and try again.")
+                    msg = f"Output file for concatenate_lanes {fastq_out} exists. Please delete and try again."
+                    log.write(msg)
+                    return("", 2) # Return error
+
+                cmd = ["python", os.path.join(cwd, "py_scripts/concatenate_fastqs.py"), "-i", ",".join(files_to_concatenate), "-o", fastq_out, "-s", sample_id, "-c", self.cluster_name, "-l", ",".join(library_names)]
                 if slurm != None:
                     cmd = ' '.join(cmd)
                     job_file =  os.path.join("concatenate_lanes_scripts/", (self.cluster_name + "_concatenate_lanes.sh"))
@@ -144,7 +172,8 @@ class Cluster:
                         log.write(msg)
                         return
                 else:
-                    subprocess.call([cmd])
+                    exit_code = subprocess.call(cmd)
+                    return("local", exit_code)
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -185,7 +214,8 @@ class Cluster:
                         log.write(msg)
                         return
                 else:
-                    subprocess.call(cmd)
+                    exit_code = subprocess.call(cmd)
+                    return("local", exit_code.returncode)
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
