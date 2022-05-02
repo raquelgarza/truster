@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-print("Yellow!")
 
 import anndata
 import scvelo as scv

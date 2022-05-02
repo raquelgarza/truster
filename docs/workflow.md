@@ -32,7 +32,7 @@ We can then register the samples in an experiment object
 import truster
 raw_path = ["/path/to/data/"]
 example = truster.experiment(name = "example")
-example.registerSamplesFromPath(raw_path)
+example.register_samples_from_path(raw_path)
 ```
 
 This will look for this structure of files in the path and create an object "sample" per subdirectory in the path, the object will have the name of the subdirectories as ID (i.e. sample1) and the name of the files (i.e. sample1Name) as sample name. The "sample" objects are contained to the object "experiment" which here we called **example**.
@@ -40,13 +40,13 @@ This will look for this structure of files in the path and create an object "sam
 If there was any sample in the `data/` folder you didn't want to include, you can unregister it with 
 
 ```
-example.unregisterSample(sampleId = "sample1")
+example.unregister_sample(sampleId = "sample1")
 ```
 
 Similarly, you can register individual samples as 
 
 ```
-example.registerSample(sampleId = "sample3", sampleName = "sample3Name", rawPath = "/path/to/sample3/fastqfiles/")
+example.register_sample(sampleId = "sample3", sampleName = "sample3Name", rawPath = "/path/to/sample3/fastqfiles/")
 ```
 
 <br/>
@@ -62,7 +62,7 @@ example.quantify(crIndex, outdir)
 If you already have the output from cellranger, feel free to set the quantification outdir with
 
 ```
-example.setQuantificationOutdir(outdir)
+example.set_quantification_outdir(outdir)
 ```
 Note: Before continuing, don't forget to check the quality of your samples!
 
@@ -75,7 +75,7 @@ We can get a clustering of each sample by typing
 
 ```
 clusters_dir = 'wherever/you/want/the/output'
-example.getClustersAllSamples(clusters_dir)
+example.get_clusters_all_samples(clusters_dir)
 ```
 
 This will create the `clusters_dir` and a subfolder per sample (named with the `sampleIds`). Each of these subfoldes will contain a tsv file per cluster found on the sample. The tsv files contain the cells barcodes that form that cluster.
@@ -85,7 +85,7 @@ You will also get an rds file in the output directory with the Seurat object of 
 If you already have a clustering of your preference, please produce the required tsv files and set the clusters directory as:
 
 ```
-example.setClustersOutdir(processClustersOutdir = outdir)
+example.set_clusters_outdir(processClustersOutdir = outdir)
 ```
 
 We could add a function in the near future that takes rds with a Seurat object and produces the tsv files in the file structure we need it. 
@@ -95,13 +95,13 @@ In some experiments, such as this one where the samples are from the same tissue
 
 ```
 mergedsamples_dir = 'wherever/you/want/the/output'
-example.mergeSamples(mergedsamples_dir)
+example.merge_samples(mergedsamples_dir)
 ```
 
 Similarly to the clusters per sample, if you already have a clustering you want to use, you could set the directory where you contain the tsv files with the cell barcodes as 
 
 ```
-example.setMergeSamplesOutdir(outdir)
+example.set_merge_samples_outdir(outdir)
 ```
 
 If you are going to merge the Seurat objects yourself, we ask you to name the merged tsv files as `[sampleId]_merged.clusters_[cluster number].tsv`
@@ -133,7 +133,7 @@ gene_gtf = 'path/to/gene.gtf'
 te_gtf = 'path/to/te.gtf'
 star_index = 'path/to/star/index'
 
-example.processClusters(mode = "merged",
+example.process_clusters(mode = "merged",
                         outdir = output, 
                         geneGTF = gene_gtf, 
                         teGTF = te_gtf, 
@@ -148,7 +148,7 @@ If you want to wait a bit and check the output of each step of the pipeline, you
 
 Extract cell barcodes from the bam files typing
 ```
-example.tsvToBamClusters(mode = "merged", outdir)
+example.tsv_to_bam_clusters(mode = "merged", outdir)
 ```
 This will create a directory inside the outdir named `tsvToBam/`. This directory will contain subdirectories one per sample, containing the bam files for each of their clusters.
 
@@ -161,7 +161,7 @@ We ensure the molecules are unique by keeping only reads with a unique combinati
 To filter duplicates in our merged clustering bam files:
 
 ```
-example.filterUMIsClusters("merged", outdir)
+example.filter_UMIs_clusters("merged", outdir)
 ```
 
 This will create a directory inside the outdir named `filterUMIs/`. Similarly to `tsvToBam/` it contains a subdirectory per sample, each containing the filtered bam file.
@@ -171,20 +171,20 @@ This will create a directory inside the outdir named `filterUMIs/`. Similarly to
 This is just a file conversion step dependent on bamtofastq from 10x Genomics.
 
 ```
-example.bamToFastqClusters("merged", outdir) 
+example.bam_to_fastq_clusters("merged", outdir) 
 ```
 
-Will create a directory inside the outdir named `bamToFastq/`. Each sample subdirectory has subdirectories for each cluster which contain the fastq files of the clusters in different lanes (L00[1-9]).
+Will create a directory inside the outdir named `bam_to_fastq/`. Each sample subdirectory has subdirectories for each cluster which contain the fastq files of the clusters in different lanes (L00[1-9]).
 
 ##### 4) Concatenate lanes
 
 We will take the sequence fastq files (`*_R2_001.fastq.gz`) and concatenate them. This will produce a bulk file for each cluster. 
 
 ```
-example.concatenateLanesClusters("merged", outdir)
+example.concatenate_lanes_clusters("merged", outdir)
 ```
 
-Again, this will create a directory inside the outdir named `concatenateLanes/` which will include sample subdirectories containing the concatenated fastq files per cluster.
+Again, this will create a directory inside the outdir named `concatenate_lanes/` which will include sample subdirectories containing the concatenated fastq files per cluster.
 
 ##### 5) Map fastq files
 
@@ -197,7 +197,7 @@ output = 'wherever/you/want/the/output'
 gene_gtf = 'path/to/gene.gtf'
 star_index = 'path/to/star/index'
 
-example.mapClusters("merged", outdir = output, geneGTF = gene_gtf, starIndex = star_index)
+example.map_clusters("merged", outdir = output, geneGTF = gene_gtf, starIndex = star_index)
 ```
 
 ##### 6) TE quantification
@@ -209,7 +209,7 @@ output = 'wherever/you/want/the/output'
 gene_gtf = 'path/to/gene.gtf'
 te_gtf = 'path/to/te.gtf'
 
-example.TEcountsClusters("merged", outdir = output, geneGTF = gene_gtf, teGTF = te_gtf)
+example.TE_counts_clusters("merged", outdir = output, geneGTF = gene_gtf, teGTF = te_gtf)
 ```
 
 The output directory now contains a subdirectory called `TEcounts/` with samples' subdirectories and each of their clusters TE counts.
@@ -219,7 +219,7 @@ The output directory now contains a subdirectory called `TEcounts/` with samples
 Before continuing with the downstream analysis, we need to normalize for samples' sequencing depth and cluster size. We can do this for all samples using
 
 ```
-example.normalizeTECounts("merged")
+example.normalize_TE_counts("merged")
 ```
 
 And that's it! You can now see your final count matrix at the output directory and if you want you can use our plot_TEexpression.R script to plot a UMAP with TE subfamilies expression. 
