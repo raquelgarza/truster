@@ -8,18 +8,6 @@ library(RColorBrewer)
 library(patchwork)
 set.seed(10)
 
-# paths <- c('/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_10/Seq073_10.rds',
-#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_11/Seq073_11.rds',
-#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_12/Seq073_12.rds',
-#            '/Volumes/My Passport/Seq073_HP1/09.06.21/2_getClusters/Seq073_9/Seq073_9.rds')
-# 
-# ids <- c("Seq073_10",
-#          "Seq073_11",
-#          "Seq073_12",
-#          "Seq073_9")
-# outpath <- "/Volumes/My Passport/Seq073_HP1/09.06.21/3_mergeSamples/"
-# experiment_name <- "hp1b"
-
 option_list = list(
   make_option(c("-i", "--inpath"), type="character", default=NULL,
               help="RData paths", metavar="character"),
@@ -29,6 +17,8 @@ option_list = list(
               help="Output path", metavar="character"),
   make_option(c("-e", "--experimentName"), type="character", default=NULL,
               help="Experiment name", metavar="character"),
+  make_option(c("-r", "--resolution"), type="character", default=0.5,
+              help="Resolution. Default 0.5", metavar="character"),
   make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
               help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
   make_option(c("-I", "--integrateSamples"), type="character", default = "FALSE", 
@@ -52,11 +42,13 @@ outpath <- ifelse(endsWith(opt$outpath, "/"), opt$outpath, paste(opt$outpath, '/
 experiment_name <- trimws(opt$experimentName)
 normalization_method <- as.character(opt$normalizationMethod)
 integrate <- as.logical(opt$integrateSamples)
+res <- as.numeric(as.character(opt$resolution))
 
 print(c("Input paths: ", paths))
 print(c("Input ids: ", ids))
 print(c("Output path: ", outpath))
 print(c("Experiment name: ", experiment_name))
+print(c("Resolution: ", res))
 print(c("Normalization method: ", normalization_method))
 print(c("Integrate samples: ", integrate))
 
@@ -85,7 +77,7 @@ all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes, assay = assay)
 experiment <- RunPCA(experiment, features = VariableFeatures(object = experiment), assay = assay)
 experiment <- FindNeighbors(experiment, dims = 1:10, assay = assay)
-experiment <- FindClusters(experiment, resolution = 0.5)
+experiment <- FindClusters(experiment, resolution = res)
 experiment <- RunUMAP(experiment, dims = 1:10, assay = assay)
 
 colours <- colorRampPalette(brewer.pal(8, "Accent"))(length(unique(experiment$seurat_clusters)))
