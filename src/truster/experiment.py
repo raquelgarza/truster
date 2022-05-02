@@ -8,7 +8,7 @@ from .bcolors import Bcolors
 import concurrent.futures
 import copy
 import gzip
-from Bio import SeqIO
+#from Bio import SeqIO
 
 class Experiment:
 
@@ -564,7 +564,6 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-
     def merge_clusters(self, outdir, groups = {"merged_cluster": "all"}):
         with open(self.logfile, "a") as log:
             def merge_cluster_per_group(group, group_name):
@@ -900,7 +899,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = {"all" : "merged_cluster"}, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, out_tmp_dir = None, unique=False, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
             msg = "Running whole pipeline.\n"
             log.write(msg)
@@ -916,6 +915,9 @@ class Experiment:
                         print(msg)
                         log.write(msg)
                         return 2
+
+                if groups is None: # then we group all samples together
+                    groups = {"merged_cluster" : [sample for sample in self.samples.keys()]}
 
                 if tsv_to_bam:
                     current_instruction = "tsv_to_bam"

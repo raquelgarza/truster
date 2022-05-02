@@ -152,7 +152,8 @@ class Cluster:
                     log.write(msg)
                     return("", 2) # Return error
 
-                cmd = ["python", os.path.join(cwd, "py_scripts/concatenate_fastqs.py"), "-i", ",".join(files_to_concatenate), "-o", fastq_out, "-s", sample_id, "-c", self.cluster_name, "-l", ",".join(library_names)]
+                # cmd = ["python", os.path.join(cwd, "py_scripts/concatenate_fastqs.py"), "-i", ",".join(files_to_concatenate), "-o", fastq_out, "-s", sample_id, "-c", self.cluster_name, "-l", ",".join(library_names)]
+                cmd = ["cat", " ".join(files_to_concatenate), ">", fastq_out]
                 if slurm != None:
                     cmd = ' '.join(cmd)
                     job_file =  os.path.join("concatenate_lanes_scripts/", (self.cluster_name + "_concatenate_lanes.sh"))
@@ -186,7 +187,7 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
-                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_") , "--limitBAMsortRAM", str(RAM)]
+                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMreadID", "Number", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_") , "--limitBAMsortRAM", str(RAM)]
                 if unique:
                     cmd.extend(["--outFilterMultimapNmax", "1", "--outFilterMismatchNoverLmax", "0.03"])
                 else:
