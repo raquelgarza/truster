@@ -1,0 +1,14 @@
+{
+        "counts":["cellranger/3.1.0"],
+        "velocity":["GCC/7.3.0-2.30", "SAMtools/1.9", "velocyto/0.17.17"],
+        "plot_velocity":["GCC/8.3.0", "OpenMPI/3.1.4","scVelo/0.1.24-Python-3.7.4"],
+        "get_clusters":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"],
+        "merge_samples":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/3.1.5-R-4.0.0"],
+        "tsv_to_bam":["subset-bam/1.0"],
+        "filter_UMIs":["GCC/7.3.0-2.30",  "OpenMPI/3.1.1", "Pysam/0.15.1-Python-3.6.6"],
+        "bam_to_fastq":["bamtofastq/1.2.0"],
+        "map_cluster":["GCC/5.4.0-2.26", "OpenMPI/1.10.3", "STAR/2.6.0c"],
+        "TE_count":["icc/2018.1.163-GCC-6.4.0-2.28", "OpenMPI/2.1.2", "TEToolkit/2.0.3-Python-2.7.14"],
+        "TE_count_unique": ["GCC/7.3.0-2.30", "OpenMPI/3.1.1", "Subread/1.6.3"],
+        "normalize_TE_counts":["GCC/9.3.0", "OpenMPI/4.0.3", "Seurat/4.0.0-R-4.0.0"]
+}

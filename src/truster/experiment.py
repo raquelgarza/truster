@@ -7,6 +7,8 @@ from .cluster import Cluster
 from .bcolors import Bcolors
 import concurrent.futures
 import copy
+import gzip
+#from Bio import SeqIO
 
 class Experiment:
 
@@ -480,6 +482,45 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
+    def sanity_check_duplicated_headers(self, indir, jobs=1):
+        def check_duplicate_read_headers(fastq):
+            headers = []
+            with gzip.open(fastq, "rt") as fq: 
+                for record in SeqIO.parse(fq, "fastq"):
+                    if record.id in headers:
+                        return(False)
+                    else:
+                        headers.append(record.id)
+            return(len(headers) == len(set(headers)))
+
+        with open(self.logfile, "a") as log:
+            try:
+                self.sanity_check_duplicated_headers_results = []
+                msg = "Checking for duplicated headers in FastQ files.\n"
+                log.write(msg)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                    merged_cluster_indir = os.path.join(indir, "merged_cluster/")
+                    for root, subdirs, files in os.walk(merged_cluster_indir):
+                        for fastq in files:
+                            self.sanity_check_duplicated_headers_results.append(executor.submit(check_duplicate_read_headers, os.path.join(merged_cluster_indir, fastq)))
+                            msg = f"File {fastq} passed sanity check: {self.sanity_check_duplicated_headers_results[-1].result()}\n"
+                            log.write(msg)
+                sanity_check_duplicated_headers_exit_codes = [i.result() for i in self.sanity_check_duplicated_headers_results]
+                sanity_check_duplicated_headers_all_success = all(exit_code == 0 for exit_code in sanity_check_duplicated_headers_exit_codes)
+
+                if sanity_check_duplicated_headers_all_success:
+                    msg = "\nSanity check finished succesfully for all samples!\n"
+                    log.write(msg)
+                    return True
+                else:
+                    msg = "\nSanity check did not finished succesfully for all samples.\n"
+                    log.write(msg)
+                    return False
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted. Finishing sanity_check_duplicated_headers for all clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
+                print(msg)
+                log.write(msg)
+
     def merge_clusters(self, outdir, groups):
         with open(self.logfile, "a") as log:
             def merge_cluster_per_group(group, group_name):
@@ -836,6 +877,9 @@ class Experiment:
                         print(msg)
                         log.write(msg)
                         return 3
+
+                if groups is None: # then we group all samples together
+                    groups = {"merged_cluster" : [sample for sample in self.samples.keys()]}
 
                 if tsv_to_bam:
                     current_instruction = "tsv_to_bam"
