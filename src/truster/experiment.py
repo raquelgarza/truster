@@ -79,10 +79,10 @@ class Experiment:
                 elif isinstance(indir, str):
                     if os.path.isdir(indir):
                         self.samples = path_to_samples(indir)
-                        msg = "Registered from " + path + "\n"
+                        msg = "Registered from " + indir + "\n"
                         log.write(msg)
                 else:
-                    msg = "When registering samples from path: indir does not exist (Check " + path + ")\n"
+                    msg = "When registering samples from path: indir does not exist (Check " + indir + ")\n"
                     log.write(msg)
                 with open(self.logfile, "a") as log:
                     msg = "Registered samples: " + str(', '.join([sample.sample_id for sample in list(self.samples.values())]) + ".\n")
@@ -222,7 +222,7 @@ class Experiment:
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
-        
+
         # Sample ids
         samples_ids = [sample.sample_id for sample in list(self.samples.values())]
 
@@ -264,21 +264,20 @@ class Experiment:
                 msg = "Emptied clusters"
                 print(msg)
                 log.write(msg)
-            
-                # print([j.clusters for j in self.merge_samples.values()])
 
                 # Make a dictionary of the same sort as the registered samples
                 # for example {sample1 : [cluster1, cluster2]}
                 # with the clusters that we created in the outdir we passed to R
-                # They all have the words "merged.clusters", after that is the number
+                # They all have the words "merged.clusters", after that is the cluster number/name
                 # Before that is the sample id, which we can use as a key in the 
                 # merge_samples_clusters dictionary and just append the cluster objects
                 # To the empty list we now have
                 for i in os.listdir(outdir):
                     if(i.endswith(".tsv")):
-                        cluster_name = i.split(".tsv")[0]
-                        sample_id = cluster_name.split("_merged.clusters")[0]
+                        cluster_name = i.split(".tsv")[0] # sample_A_merged.clusters_0
+                        sample_id = cluster_name.split("_merged.clusters")[0] # sample_A
                         cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(outdir, i), logfile = self.logfile)
+                        # Dictionary merge_samples contain the barcodes of a cluster (of the merged object) per sample 
                         self.merge_samples[sample_id].clusters.append(cluster)
                 self.merge_samples_outdir = outdir
                 return True
@@ -484,43 +483,79 @@ class Experiment:
     def merge_clusters(self, outdir, groups):
         with open(self.logfile, "a") as log:
             def merge_cluster_per_group(group, group_name):
+                # group_name = "group_1"
+                # group = ["sample_A", "sample_B", "sample_C"]
+                # Extract the (merged) clusters' object of a sample if it's in the group. 
+                # The cluster names are like sample_A_merged.clusters_0, so they are back-traceable to a sample
+                # merge_samples_lists_clusters would then be a list of lists (per sample) of all clusters of a group
+                # For example: [["sample_A_merged.clusters_0", "sample_A_merged.clusters_1"], ["sample_B_merged.clusters_0", "sample_B_merged.clusters_1"], ["sample_C_merged.clusters_0", "sample_C_merged.clusters_1"]]
                 merge_samples_lists_clusters = [samples_clusters.clusters for sample_id, samples_clusters in self.merge_samples.items() if sample_id in group]
-                merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for merge_samples_list_clusters in merge_samples_lists_clusters for cluster in merge_samples_list_clusters]
+                # "Unlist"
+                # samples_clusters = ["sample_A_merged.clusters_0", "sample_A_merged.clusters_1", "sample_B_merged.clusters_0", "sample_B_merged.clusters_1", "sample_C_merged.clusters_0", "sample_C_merged.clusters_1"]
+                # cluster = "sample_A_merged.clusters_0" (round 1)
+                # And extract cluster's names (the ones to be merged by)
+                # merge_samples_clusters = ["0", "1", "0", "1", "0", "1"]
+                merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for samples_clusters in merge_samples_lists_clusters for cluster in samples_clusters]
                 
+                # We are going to concatenate the tsv files of these clusters with the samples' individual tsvs
+                # Here we create a dictionary tsvs, with keys "0" and "1"
                 tsvs = { key : set() for key in merge_samples_clusters }
+                # We are going to extract the tsvs from the original samples' clusters objects, if this sample is in the group...
                 for sample_id, samples_clusters in self.merge_samples.items():
                     if sample_id in group:
                         for cluster in samples_clusters.clusters:
+                            # Let's remember that cluster_name are of the form sample_A_merged.clusters_0, so cluster_num would equal "0"
                             cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
+                            # We add this cluster's tsv file to our dictionary
                             tsvs[cluster_num].add(cluster.tsv)
 
+                # Initialize an empty directory with keys "0" and "1"
                 merge_clusters = dict.fromkeys(tsvs.keys())
+                # Iterate by cluster number (or ID) (cluster_num) and their respective list of tsv files (tsv)
                 for cluster_num, tsv in tsvs.items():
+                    # We initialize the cluster objects by group. These are going to be named e.g. "group_A_0" 
+                    # and will have a list of tsv files
                     merge_clusters[cluster_num] = Cluster(cluster_name = (group_name + "_" + str(cluster_num)), tsv = list(tsvs[cluster_num]), logfile = self.logfile)
                 
+                # Initialize a list for the results
                 self.merged_clusters_results = []
                 for cluster_num in merge_clusters.keys():
+                    # We are going to concatenate the fastq files of these samples' clusters 
+                    # (that were stored in a dir named concatenate_lanes)
                     outdir_concatenat_lanes = os.path.join(outdir, "concatenate_lanes")
+                    # The output files are going to be stored in outdir_merged_clusters and will be named as group_A_0_R2.fastq.gz
                     outfile = os.path.join(outdir_merged_clusters, (group_name + "_" + str(cluster_num) + "_R2.fastq.gz"))
                     
+                    # Initialize a list to store the names of the clusters' fastqs
                     cluster_fastqs = []
+                    # Walk inside concatenate_lanes directory (there are subdirectories per sample)
                     for dirpath, subdirs, files in os.walk(outdir_concatenat_lanes):
                         for file in files:
+                            # If we have sample_A_merged.clusters_0_R2.fastq.gz, we check that "0" matches cluster_num 
+                            # and that "sample_A" is in the group list
+                            # if both are True, we append this file to the list of files we want to concatenate
                             if file.split("_merged.clusters_")[1].split("_R2.fastq.gz")[0] == cluster_num and file.split("_merged.clusters_")[0] in group:
                                 cluster_fastqs.append(os.path.join(dirpath, file))
 
-                    cmd = cluster_fastqs
-                    cmd.insert(0, "cat")
-                    
+                    # Before we move to cluster_num "1", let's concatenate the files for cluster_num "0"
+                    cmd = [fastq.replace(" ", "\ ") for fastq in cluster_fastqs]
+                    # cat doesn't add a new line after a file, but bam_to_fastq ends their files with a new line. 
+                    # Therefore, concatenate_lanes outputs have a new line at the end of all files
+                    # and can therefore be concatenated just like that :-)
+                    cmd.insert(0, "cat") # cat sample_A_merged.clusters_0_R2.fastq.gz sample_B_merged.clusters_0_R2.fastq.gz sample_C_merged.clusters_0_R2.fastq.gz
+
                     log.write("Running " + ' '.join(cmd) + "\n\n\n")
                     
                     with open(outfile, "w") as fout:
                         self.merged_clusters_results.append(subprocess.call(cmd, shell = False, stdout=fout, universal_newlines=True))
                 
+                # We save the cluster objects for this group in merge_samples_groups
                 self.merge_samples_groups[group_name] = merge_clusters
+                # And the outdir
                 self.outdir_merged_clusters_groups[group_name] = outdir_merged_clusters
                 log.write("self.merge_samples_groups[" + group_name + "] is now " + str(merge_clusters) + "\n\n\n")
                 
+                # If something went wrong, we return False
                 merged_clusters_all_success = all(exit_code == 0 for exit_code in self.merged_clusters_results)
 
                 if merged_clusters_all_success:
@@ -532,18 +567,19 @@ class Experiment:
                     log.write(msg)
                     return False
             try:
+                # Set the output directory
                 outdir_merged_clusters = os.path.join(outdir, "merged_cluster")
                 if not os.path.exists(outdir_merged_clusters):
                     os.makedirs(outdir_merged_clusters, exist_ok=True)
+
                 # If you dont want all samples together (maybe you want to group by condition)
-                # Please provide a list of lists with the groups you want to make
+                # Please provide a dictionary of lists with the groups you want to make (sample IDs!)
+                # E.g. groups = {"group_1" : ["sample_A", "sample_B", "sample_C"], "group_2" : ["sample_D", "sample_E", "sample_F"]}
                 merge_cluster_per_group_out = []
-                # if list(groups.keys())[0] == "merged_cluster":
-                #     group = list(self.merge_samples.keys())
-                #     merge_cluster_per_group_out.append(merge_cluster_per_group(group, "merged_cluster"))
-                # else:
+                # For group_name = "group_1", group = ["sample_A", "sample_B", "sample_C"]:
                 for group_name, group in groups.items():
                     log.write("Running merge_clusters for samples " + str(group) + ", members of group " + group_name)
+                    # If all samples in a group are registered, merge cluster per group
                     if all([sample_id in self.merge_samples.keys() for sample_id in group]):
                         log.write("All samples of group " + group_name + " have been found registered.")
                         merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_name))
