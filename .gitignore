@@ -6,5 +6,5 @@ test/src/test.log
 *dnhistory*
 *I1_001.fastq.gz
 *R1_001.fastq.gz
-*test/3_merge_samples/cluster_pipeline/concatenate_lanes/sample_*/sample_*_merged.clusters_*_R2.fastq.gz
+test/3_merge_samples/cluster_pipeline/concatenate_lanes/*/*.fastq.gz
 truster.egg-info/
