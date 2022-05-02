@@ -9,7 +9,7 @@ setuptools.setup(
     packages = setuptools.find_packages("src"),
     package_dir = {'truster' : 'src/truster'},
     package_data={'truster' : ['r_scripts/*.r', 'r_scripts/*.R', 'py_scripts/plotVelocity']},
-    scripts = ["src/truster/py_scripts/filterUMIs"], 
+    scripts = ["src/truster/py_scripts/filterUMIs", "src/truster/py_scripts/concatenate_fastqs.py"], 
     include_package_data=True,
     author = "Raquel Garza",
     author_email = "raquelgarza95@gmail.com",

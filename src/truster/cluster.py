@@ -81,15 +81,58 @@ class Cluster:
                     os.makedirs("concatenate_lanes_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
-    
-                cmd = ["cat", os.path.join(indir, self.cluster_name, "*/*_R2_001.fastq.gz"), ">", os.path.join(outdir, (self.cluster_name + "_R2.fastq.gz"))]
-                result = run_instruction(cmd = cmd, fun = "concatenate_lanes", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "concatenate_lanes", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
-                exit_code = result[1]
 
-                if exit_code == 0:
-                    self.outdirs["bam_to_fastq"] = outdir
-                return result
+                # Initialize the list of files to concatenate
+                files_to_concatenate = []
+                library_names = []
+                # Walk through the files in the indir
+                for root, subdirs, files in os.walk(os.path.join(indir, self.cluster_name)):
+                    # If there is more than one subdirectory, we could be dealing with different library types
+                    # The subdirectories have the form of sampleid_0_1_ID
+                    for subdir in subdirs:
+                        # We use sample_id to split as sample_id might contain underscores
+                        library_type = subdir.split(sample_id)[1].split("_")[1:3]
+                        if library_type == ["0", "1"]: # Gene expression
+                            # For each of the gene expression libraries found in this sample, we walk through the files
+                            for root_in_subdir, subdirs_in_subdir, files_in_subdir in os.walk(os.path.join(indir, self.cluster_name, subdir)):
+                                for file in files_in_subdir:
+                                    if(file.endswith("R2_001.fastq.gz")): # If it's a sequence file, we want to concatenate
+                                        files_to_concatenate.append(os.path.join(indir, self.cluster_name, root_in_subdir, file))
+                                        library_names.append(subdir)
+                
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                
+                fastq_out = os.path.join(outdir, (self.cluster_name + "_R2.fastq.gz"))
+                # We don't want to keep appending to an existing file...
+                if os.path.exists(fastq_out):
+                    print(f"Output file {fastq_out} exists. Please delete and try again.")
+                    msg = f"Output file for concatenate_lanes {fastq_out} exists. Please delete and try again."
+                    log.write(msg)
+                    return("", 2) # Return error
 
+                # cmd = ["python", os.path.join(cwd, "py_scripts/concatenate_fastqs.py"), "-i", ",".join(files_to_concatenate), "-o", fastq_out, "-s", sample_id, "-c", self.cluster_name, "-l", ",".join(library_names)]
+                cmd = ["cat", " ".join(files_to_concatenate), ">", fastq_out]
+                if slurm != None:
+                    cmd = ' '.join(cmd)
+                    job_file =  os.path.join("concatenate_lanes_scripts/", (self.cluster_name + "_concatenate_lanes.sh"))
+                    try:
+                        job_id = run_job("concatenate_lanes", job_file, cmd, slurm, modules)
+                        msg = sucess_submit("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
+                        log.write(msg)
+
+                        exit_code = wait_for_job(job_id)
+                        msg = check_exit_codes("concatenate_lanes", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
+                        log.write(msg)
+                        if exit_code == 0:
+                            self.outdirs["concatenate_lanes"] = outdir
+                        return (job_id, exit_code)
+                    except:
+                        msg = generic_error("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name))
+                        log.write(msg)
+                        return
+                else:
+                    exit_code = subprocess.call(cmd)
+                    return("local", exit_code)
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
@@ -102,7 +145,7 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
-                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_") , "--limitBAMsortRAM", str(RAM)]
+                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMreadID", "Number", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_") , "--limitBAMsortRAM", str(RAM)]
                 if unique:
                     cmd.extend(["--outFilterMultimapNmax", "1", "--outFilterMismatchNoverLmax", "0.03"])
                 else:
@@ -110,13 +153,13 @@ class Cluster:
                 if out_tmp_dir != None:
                     cmd.extend(["--out_tmp_dir", out_tmp_dir])
                 cmd.extend(["--readFilesIn", os.path.join(fastq_dir, (self.cluster_name + "_R2.fastq.gz"))])
+                
                 result = run_instruction(cmd = cmd, fun = "map_cluster", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "map_cluster", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
                 exit_code = result[1]
 
                 if exit_code == 0:
                     self.outdirs["map_cluster"] = outdir
                 return result
-
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)

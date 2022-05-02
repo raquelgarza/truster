@@ -1,0 +1,13 @@
+{
+  "__default__" :
+  {
+      "account" : "lsens2018-3-3",
+      "time" : "00:15:00",
+      "nodes" : 1,
+      "partition" : "dell",
+      "tasks-per-node" : 5,
+      "output" : "%j.out",
+      "error" : "%j.err",
+      "job-name" : "%j"
+  }
+}
