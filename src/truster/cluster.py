@@ -109,30 +109,14 @@ class Cluster:
                     msg = f"Output file for concatenate_lanes {fastq_out} exists. Please delete and try again."
                     log.write(msg)
                     return("", 2) # Return error
-
-                # cmd = ["python", os.path.join(cwd, "py_scripts/concatenate_fastqs.py"), "-i", ",".join(files_to_concatenate), "-o", fastq_out, "-s", sample_id, "-c", self.cluster_name, "-l", ",".join(library_names)]
+                    
                 cmd = ["cat", " ".join(files_to_concatenate), ">", fastq_out]
-                if slurm != None:
-                    cmd = ' '.join(cmd)
-                    job_file =  os.path.join("concatenate_lanes_scripts/", (self.cluster_name + "_concatenate_lanes.sh"))
-                    try:
-                        job_id = run_job("concatenate_lanes", job_file, cmd, slurm, modules)
-                        msg = sucess_submit("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name), job_id)
-                        log.write(msg)
+                result = run_instruction(cmd = cmd, fun = "concatenate_lanes", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "concatenate_lanes", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
+                exit_code = result[1]
 
-                        exit_code = wait_for_job(job_id)
-                        msg = check_exit_codes("concatenate_lanes", ("Sample " + sample_id + ", cluster " + self.cluster_name),job_id, exit_code)
-                        log.write(msg)
-                        if exit_code == 0:
-                            self.outdirs["concatenate_lanes"] = outdir
-                        return (job_id, exit_code)
-                    except:
-                        msg = generic_error("concatenate_lanes", (" sample " + sample_id + " cluster " +  self.cluster_name))
-                        log.write(msg)
-                        return
-                else:
-                    exit_code = subprocess.call(cmd)
-                    return("local", exit_code)
+                if exit_code == 0:
+                    self.outdirs["concatenate_lanes"] = outdir
+                return result
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
