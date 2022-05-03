@@ -10,12 +10,13 @@ from .cluster import Cluster
 from .bcolors import Bcolors
 
 class Sample:
-    def __init__(self, slurm, modules, logfile, sample_id="", sample_name="", raw_path = ""):
+    def __init__(self, slurm, modules, logfile, sample_id="", sample_name="", raw_path = "", rdata_path = ""):
         self.slurm = slurm
         self.modules = modules
         self.sample_id = sample_id
         self.sample_name = sample_name
         self.raw_path = raw_path
+        self.rdata_path = rdata_path
         self.logfile = logfile
 
     def quantify(self, cr_index, indir, outdir, nuclei = False):
