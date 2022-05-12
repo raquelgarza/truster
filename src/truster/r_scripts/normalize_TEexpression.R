@@ -12,25 +12,7 @@ set.seed(10)
 # Tab file of classification of transposons
 # Path to RData 
 # Path to TEcounts folder with output per cluster
-# 
-# 
-# mode = 'per_sample'
-# obj_name = 'Seq095_2'
-# samples = NULL
-# group_name = NULL
-# outdir = '/Volumes/My Passport/FetalCortex/06.05.21/2_getClusters/cluster_pipeline/TE_counts_normalized/multiple/Seq095_2/'
-# indir = '/Volumes/My Passport/FetalCortex/06.05.21/2_getClusters/cluster_pipeline/TE_counts/multiple/Seq095_2/'
-# rds = '/Volumes/My Passport/FetalCortex/06.05.21/2_getClusters/Seq095_2/Seq095_2.rds'
-# # 
-# 
-# mode = 'merged.clusters'
-# obj_name = "tbi"
-# group_name = "tbi"
-# samples = c("HuBrain_TBI_no6", "HuBrain_TBI_no7", "HuBrain_TBI_no8", "MJ_TBI_nr1", "MJ_TBI_nr2", "MJ_TBI_nr3", "MJ_TBI_nr10", "MJ_TBI_nr11", "MJ_TBI_nr16", "MJ_TBI_nr19", "MJ_TBI_nr20", "MJ_TBI_nr21")
-# outdir = '/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster/clusterPipeline_per_condition/'
-# indir = '/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster/clusterPipeline_per_condition/TE_counts/multiple/'
-# rds = '/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster/tbi.rds'
-# by_factor = "seurat_clusters"
+
 option_list = list(
   make_option(c("-m", "--mode"), type="character", default=NULL,
               help="Merged samples or individual? (merged/individual)", metavar="character"),
@@ -102,7 +84,6 @@ if( mode == "merged"){
 }
 
 coldata <- data.frame()
-files <- files[which(startsWith(files, paste(obj_name, group_name, "", sep="_")))]
 for(i in 1:length(files)){
   if(mode == 'merged'){
     cluster <- unlist(str_split(unlist(str_split(files[i], paste(obj_name, group_name, "", sep="_")))[2], "_.cntTable"))[1]
@@ -128,14 +109,6 @@ for(i in 1:length(files)){
 }
 rownames(TEcounts) <- TEcounts$TE
 rownames(coldata) <- coldata$name
-
-# num_reads <- data.frame(id=names(colSums(TEcounts[which(startsWith(TEcounts$TE, "ENS")),rownames(coldata)])),
-#                         value=colSums(TEcounts[which(startsWith(TEcounts$TE, "ENS")),rownames(coldata)]))
-# if(mode != "merged"){
-#   num_reads$sample_id <- sapply(str_split(num_reads$id, '[[.]]'), `[[`, 1)
-#   # If we are normalizing by seq depth per sample, we can aggregate per sample id
-#   num_reads <- aggregate(num_reads$value, by=list(num_reads$sample_id), FUN=sum)
-# }
 
 coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
