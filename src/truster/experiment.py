@@ -17,10 +17,11 @@ class Experiment:
         self.slurm_path = slurm_path
         self.modules_path = modules_path
         self.samples = {}
-        self.logfile = self.name + ".log"
+        self.merge_samples_dict = None
+        self.logfile = f"{self.name}.log"
 
         with open(self.logfile, "w+") as log:
-            msg = "Project " + self.name + " created.\n"
+            msg = f"Project {self.name} created.\n"
             log.write(msg)
             if slurm_path != None:
                 try:
@@ -29,7 +30,7 @@ class Experiment:
                         msg = "Configuration file loaded.\n"
                         log.write(msg)
                 except FileNotFoundError:
-                    msg = Bcolors.FAIL + "Error: Cluster configuration file not found" + Bcolors.ENDC + "\n"
+                    msg = f"{Bcolors.FAIL}Error: Cluster configuration file not found{Bcolors.ENDC}\n"
                     print(msg)
                     log.write(msg)
                     return 4
@@ -41,7 +42,7 @@ class Experiment:
                         msg = "Software modules json loaded.\n"
                         log.write(msg)
                 except FileNotFoundError:
-                    msg = Bcolors.FAIL + "Error: Module configuration file not found" + Bcolors.ENDC + "\n"
+                    msg = "{Bcolors.FAIL}Error: Module configuration file not found{Bcolors.ENDC}\n"
                     print(msg)
                     log.write(msg)
                     return 4
@@ -49,17 +50,17 @@ class Experiment:
     def register_sample(self, sample_id = "", sample_name = "", raw_path = ""):
         new_sample = {sample_id : Sample(slurm=self.slurm, modules = self.modules, sample_id = sample_id, sample_name = sample_name, raw_path = raw_path, logfile = self.logfile)}
         self.samples = {**self.samples, **new_sample}
-        
         with open(self.logfile, "a") as log:
-            msg = "Sample " + sample_id + " registered.\n"
+            msg = f"Sample {sample_id} registered\n"
             log.write(msg)
-        # self.samples.extend(sampleTruster(slurm=self.slurm, modules = self.modules, sample_id = sample_id, sample_name = sample_name))
+            print(msg.strip())
 
     def unregister_sample(self, sample_id):
         self.samples.pop(sample_id)
         with open(self.logfile, "a") as log:
-            msg = "Sample " + sample_id + " unregistered.\n"
+            msg = f"Sample {sample_id} unregistered\n"
             log.write(msg)
+            print(msg.strip())
 
     def register_samples_from_path(self, indir, folder_names_as_sample_ids=True):
         def path_to_samples(path):
@@ -78,17 +79,24 @@ class Experiment:
                             self.samples = path_to_samples(path)
                             msg = "Registered from " + path + "\n"
                             log.write(msg)
+                            print(msg)
+
                 elif isinstance(indir, str):
                     if os.path.isdir(indir):
                         self.samples = path_to_samples(indir)
                         msg = "Registered from " + indir + "\n"
                         log.write(msg)
+                        print(msg)
                 else:
                     msg = "When registering samples from path: indir does not exist (Check " + indir + ")\n"
                     log.write(msg)
+                    print(msg)
+
                 with open(self.logfile, "a") as log:
-                    msg = "Registered samples: " + str(', '.join([sample.sample_id for sample in list(self.samples.values())]) + ".\n")
+                    msg = "Registered samples: " + str('\n'.join([sample.sample_id for sample in list(self.samples.values())]) + "\n")
                     log.write(msg)
+                    print(msg)
+
     # nuclei can be a dictionary with sample ids as keys and bools as values (if it's nuclei or not)
     def quantify(self, cr_index, outdir, nuclei = False, jobs=1):
         try:
@@ -100,10 +108,12 @@ class Experiment:
                     else:
                         msg = Bcolors.FAIL + "nuclei needs to be a dictionary with sample ids as keys and booleans (if nuclei or not) as values." + Bcolors.ENDC + "\n" 
                         log.write(msg)
+                        print(msg)
                         return 3
                 else:
                     msg = Bcolors.FAIL + "nuclei needs to be a dictionary with sample ids as keys and booleans (if nuclei or not) as values." + Bcolors.ENDC + "\n" 
                     log.write(msg)
+                    print(msg)
                     return 3
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
@@ -115,12 +125,22 @@ class Experiment:
                         executor.submit(sample.quantify, cr_index, sample_indir, sample_outdir, sample_nuclei)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
+            print(msg)
             with open(self.logfile, "a") as log:
                 log.write(msg)
 
     def set_quantification_outdir(self, sample_id, cellranger_outdir):
-        self.samples[sample_id].set_quantification_outdir(cellranger_outdir)
-
+        with open(self.logfile, "a") as log:
+            if os.path.isdir(os.path.join(cellranger_outdir)):
+                self.samples[sample_id].set_quantification_outdir(cellranger_outdir)
+                msg = f"Quantification directory found and registered for sample {sample_id}\n"
+                log.write(msg)
+                print(f"{Bcolors.OKBLUE}{msg.strip()}{Bcolors.ENDC}")
+            else:
+                msg = f"Quantification directory not found for sample {sample_id}\n"
+                log.write(msg)
+                print(f"{Bcolors.FAIL}{msg.strip()}{Bcolors.ENDC}")
+                
     def get_clusters_all_samples(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, dry_run = False, jobs=1):
         with open(self.logfile, "a") as log:
             try:
@@ -155,8 +175,9 @@ class Experiment:
                     elif os.path.isdir(os.path.join(clusters_outdir, i)) and  i == sample.sample_name:
                         msg = sample.register_clusters_from_path(os.path.join(clusters_outdir, sample.sample_id)) 
                         log.write(msg)
-            msg = "The directory for clusters of individual samples is set to: " + clusters_outdir + ".\n"
+            msg = "The directory for clusters of individual samples is set to: " + clusters_outdir + "\n"
             log.write(msg)
+            print(f"{Bcolors.OKBLUE}{msg}{Bcolors.ENDC}")
 
     def velocity_all_samples(self, te_gtf, gene_gtf, jobs=1):
         try:
@@ -237,9 +258,9 @@ class Experiment:
         max_size = str(max_size)
         
         with open(self.logfile, "a") as log:
-            msg = "Merging samples to produce a combined clustering.\n"
+            msg = "Merging samples on to a combined clustering\n"
             log.write(msg)
-            
+
             # Run script ../r_scripts/merge_samples.R with input (-i) of the RData paths
             # and output (-o) of the output directory desired, -s for sample ids,
             # and -e for sample names used in cellranger
@@ -257,16 +278,12 @@ class Experiment:
             # If it finished succesfully then 
             if exit_code == 0:
                 # For each of the registered samples
-                self.merge_samples = copy.deepcopy(self.samples)
+                self.merge_samples_dict = copy.deepcopy(self.samples)
 
                 # Empty the clusters bc we made new ones (shared/merged)
-                for k,v in self.merge_samples.items():
+                for k,v in self.merge_samples_dict.items():
                     v.empty_clusters()
             
-                msg = "Emptied clusters"
-                print(msg)
-                log.write(msg)
-
                 # Make a dictionary of the same sort as the registered samples
                 # for example {sample1 : [cluster1, cluster2]}
                 # with the clusters that we created in the outdir we passed to R
@@ -280,8 +297,13 @@ class Experiment:
                         sample_id = cluster_name.split("_merged.clusters")[0] # sample_A
                         cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(outdir, i), logfile = self.logfile)
                         # Dictionary merge_samples contain the barcodes of a cluster (of the merged object) per sample 
-                        self.merge_samples[sample_id].clusters.append(cluster)
+                        self.merge_samples_dict[sample_id].clusters.append(cluster)
                 self.merge_samples_outdir = outdir
+
+                msg = f"merge_samples() finished succesfully. Outdir: {clusters_outdir}\n"
+                log.write(msg)
+                print(f"{Bcolors.OKGREEN}{msg}{Bcolors.ENDC}")
+
                 return True
             else:
                 return False
@@ -289,10 +311,10 @@ class Experiment:
     def set_merge_samples_outdir(self, merge_samples_outdir):
         self.merge_samples_outdir = merge_samples_outdir
         # For each of the registered samples
-        self.merge_samples = copy.deepcopy(self.samples)
+        self.merge_samples_dict = copy.deepcopy(self.samples)
     
         # Empty the clusters bc we made new ones (shared/merged)
-        for k,v in self.merge_samples.items():
+        for k,v in self.merge_samples_dict.items():
             v.empty_clusters()
 
         for i in os.listdir(merge_samples_outdir):
@@ -301,13 +323,13 @@ class Experiment:
                 sample_id = cluster_name.split("_merged.clusters")[0]
                 cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(merge_samples_outdir, i), logfile = self.logfile)
 
-                self.merge_samples[sample_id].clusters.append(cluster)
+                self.merge_samples_dict[sample_id].clusters.append(cluster)
 
         with open(self.logfile, "a") as log:
             msg = "The directory for clusters of combined samples is set to: " + merge_samples_outdir + ".\n\n"
             log.write(msg)
 
-            registered_clusters = [sample.clusters for sample_id,sample in self.merge_samples.items()]
+            registered_clusters = [sample.clusters for sample_id,sample in self.merge_samples_dict.items()]
             names_registered_clusters = ', '.join([cluster.cluster_name for list_of_clusters in registered_clusters for cluster in list_of_clusters])
             msg = "Registered merge_samples clusters per sample: " + names_registered_clusters + "\n\n"
             log.write(msg)
@@ -315,7 +337,7 @@ class Experiment:
     def tsv_to_bam_clusters(self, mode, outdir, jobs=1):
         print("Running tsv_to_bam with " + str(jobs) + " jobs.\n")
         if mode == "merged":
-            samples_dict = self.merge_samples
+            samples_dict = self.merge_samples_dict
         else:
             if mode == "per_sample":
                 samples_dict = self.samples
@@ -363,7 +385,7 @@ class Experiment:
     def filter_UMIs_clusters(self, mode, outdir, jobs=1):
         print("Running filter_UMIs with " + str(jobs) + " jobs.\n")
         if mode == "merged":
-            samples_dict = self.merge_samples
+            samples_dict = self.merge_samples_dict
         else:
             if mode == "per_sample":
                 samples_dict = self.samples
@@ -405,7 +427,7 @@ class Experiment:
     def bam_to_fastq_clusters(self, mode, outdir, jobs=1):
         print("Running bam_to_fastq with " + str(jobs) + " jobs.\n")
         if mode == "merged":
-            samples_dict = self.merge_samples
+            samples_dict = self.merge_samples_dict
         else:
             if mode == "per_sample":
                 samples_dict = self.samples
@@ -445,7 +467,7 @@ class Experiment:
     def concatenate_lanes_clusters(self, mode, outdir, jobs=1):
         print("Running concatenate_lanes with " + str(jobs) + " jobs.\n")
         if mode == "merged":
-            samples_dict = self.merge_samples
+            samples_dict = self.merge_samples_dict
         else:
             if mode == "per_sample":
                 samples_dict = self.samples
@@ -530,7 +552,7 @@ class Experiment:
                 # The cluster names are like sample_A_merged.clusters_0, so they are back-traceable to a sample
                 # merge_samples_lists_clusters would then be a list of lists (per sample) of all clusters of a group
                 # For example: [["sample_A_merged.clusters_0", "sample_A_merged.clusters_1"], ["sample_B_merged.clusters_0", "sample_B_merged.clusters_1"], ["sample_C_merged.clusters_0", "sample_C_merged.clusters_1"]]
-                merge_samples_lists_clusters = [samples_clusters.clusters for sample_id, samples_clusters in self.merge_samples.items() if sample_id in group]
+                merge_samples_lists_clusters = [samples_clusters.clusters for sample_id, samples_clusters in self.merge_samples_dict.items() if sample_id in group]
                 # "Unlist"
                 # samples_clusters = ["sample_A_merged.clusters_0", "sample_A_merged.clusters_1", "sample_B_merged.clusters_0", "sample_B_merged.clusters_1", "sample_C_merged.clusters_0", "sample_C_merged.clusters_1"]
                 # cluster = "sample_A_merged.clusters_0" (round 1)
@@ -542,7 +564,7 @@ class Experiment:
                 # Here we create a dictionary tsvs, with keys "0" and "1"
                 tsvs = { key : set() for key in merge_samples_clusters }
                 # We are going to extract the tsvs from the original samples' clusters objects, if this sample is in the group...
-                for sample_id, samples_clusters in self.merge_samples.items():
+                for sample_id, samples_clusters in self.merge_samples_dict.items():
                     if sample_id in group:
                         for cluster in samples_clusters.clusters:
                             # Let's remember that cluster_name are of the form sample_A_merged.clusters_0, so cluster_num would equal "0"
@@ -621,14 +643,14 @@ class Experiment:
                 for group_name, group in groups.items():
                     log.write("Running merge_clusters for samples " + str(group) + ", members of group " + group_name)
                     # If all samples in a group are registered, merge cluster per group
-                    if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                    if all([sample_id in self.merge_samples_dict.keys() for sample_id in group]):
                         log.write("All samples of group " + group_name + " have been found registered.")
                         merge_cluster_per_group_out.append(merge_cluster_per_group(group, group_name))
                     else:
-                        msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
+                        msg = "Not all the sample ids were found in self.merge_samples_dict. Are you sure you are passing sample ids and not sample names?"
                         log.write(msg)
                 if all(merge_cluster_per_group_out):
-                    delattr(self, "merge_samples")
+                    delattr(self, "merge_samples_dict")
                     msg = "The merged clusters can be now found in self.merge_samples_groups[group_name] (group_name = merged_cluster for all samples together)"
                     log.write(msg)
                     return True
@@ -643,14 +665,14 @@ class Experiment:
         with open(self.logfile, "a") as log:
             def set_merge_cluster_per_group(group, group_name):
                 # Cluster objects
-                merge_samples_lists_clusters = [sample.clusters for sample_id, sample in self.merge_samples.items() if sample_id in group]
+                merge_samples_lists_clusters = [sample.clusters for sample_id, sample in self.merge_samples_dict.items() if sample_id in group]
                 # Cluster number
                 merge_samples_clusters = [cluster.cluster_name.split("merged.clusters_")[1] for merge_samples_list_clusters in merge_samples_lists_clusters for cluster in merge_samples_list_clusters]
                 
                 # Making a dictionary of type cluster_num : [tsv files (one per sample having this cluster)]
                 # To create the cluster objects later
                 tsvs = { key : set() for key in merge_samples_clusters }
-                for sample_id, samples_clusters in self.merge_samples.items():
+                for sample_id, samples_clusters in self.merge_samples_dict.items():
                     if sample_id in group:
                         for cluster in samples_clusters.clusters:
                             cluster_num = cluster.cluster_name.split("merged.clusters_")[1]
@@ -673,20 +695,20 @@ class Experiment:
                 log.write("Groups: " + str(groups.values()) + "\n")
                 log.write("Group names: " + str(groups.keys()) + "\n")
                 # if list(groups.keys())[0] == "merged_cluster":
-                #     group = list(self.merge_samples.keys())
+                #     group = list(self.merge_samples_dict.keys())
                 #     set_merge_cluster_per_group(group, "merged_cluster")
                 # else:
                 # if len(groups) == len(group_names):
                 for group_name, group in groups.items():
                     # group = groups[i]
                     # group_name = group_names[i]
-                    if all([sample_id in self.merge_samples.keys() for sample_id in group]):
+                    if all([sample_id in self.merge_samples_dict.keys() for sample_id in group]):
                         set_merge_cluster_per_group(group, group_name)
                     else:
-                        msg = "Not all the sample ids were found in self.merge_samples. Are you sure you are passing sample ids and not sample names?"
+                        msg = "Not all the sample ids were found in self.merge_samples_dict. Are you sure you are passing sample ids and not sample names?"
                         log.write(msg)
 
-                delattr(self, "merge_samples")
+                delattr(self, "merge_samples_dict")
 
             except KeyboardInterrupt:
                     msg = Bcolors.HEADER + "User interrupted. Finishing merging clusters of all samples before closing." + Bcolors.ENDC + "\n" + "\n"
@@ -863,139 +885,143 @@ class Experiment:
 
     def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
-            msg = "Running whole pipeline.\n"
-            log.write(msg)
-            finished_on_the_run_merge_clusters = False
-            try:
-                if mode == "merged":
-                    samples_dict = self.merge_samples
-                else:
-                    if mode == "per_sample":    
-                        samples_dict = self.samples
-                    else:
-                        msg = "Please specify a mode (merged/per_sample)"
-                        print(msg)
-                        log.write(msg)
-                        return 3
-
-                if groups is None: # then we group all samples together
-                    groups = {"merged_cluster" : [sample for sample in self.samples.keys()]}
-
-                if tsv_to_bam:
-                    current_instruction = "tsv_to_bam"
-                    msg = "Running " + current_instruction
-                    log.write(msg)
-                    tsv_to_bam = self.tsv_to_bam_clusters(mode = mode, outdir = outdir, jobs = jobs)
-                    if not tsv_to_bam:
-                        msg = "Error in tsv_to_bam"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-                if filter_UMIs:
-                    current_instruction = "filter_UMIs"
-                    msg = "tsv_to_bam finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    filter_UMIs = self.filter_UMIs_clusters(mode = mode, outdir = outdir, jobs = jobs)
-                    if not filter_UMIs:
-                        msg = "Error in filter_UMIs"
-                        print(msg)
-                        log.write(msg)
-                        return False
-                    
-                if bam_to_fastq:
-                    current_instruction = "bam_to_fastq"
-                    msg = "filter_UMIs finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    bam_to_fastq = self.bam_to_fastq_clusters(mode = mode, outdir = outdir, jobs = jobs)
-                    if not bam_to_fastq:
-                        msg = "Error in bam_to_fastq"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-                if concatenate_lanes:
-                    current_instruction = "concatenate_lanes"
-                    msg = "bam_to_fastq finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    concatenate_lanes = self.concatenate_lanes_clusters(mode = mode, outdir = outdir, jobs = jobs)
-                    if not concatenate_lanes:
-                        msg = "Error in concatenate_lanes"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-                if mode == "merged" and merge_clusters:
-                    # Please specify as a dictionary of strings : list
-                    if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
-                        msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
-                        log.write(msg)
-                        return 3
-
-                    self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
-                    self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
-
-                    current_instruction = "merge_clusters"
-                    msg = "concatenate_lanes finished! You selected merged as your mode, so moving on to " + current_instruction
-                    log.write(msg)
-                    merge_clusters = self.merge_clusters(outdir = outdir, groups = groups)
-                    if not merge_clusters:
-                        msg = "Error in merge_clusters"
-                        print(msg)
-                        log.write(msg)
-                        return False
-                    finished_on_the_run_merge_clusters = True
-                # If you want merged samples, you have to register the groups to merge the clusters of
-                # the samples in each group. If it the function merge_clusters was finished on the run,
-                # there is no need to repeat the operation.
-                if mode == "merged" and not finished_on_the_run_merge_clusters:
-                    if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
-                        msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
-                        log.write(msg)
-                        return 3 
-
-                    self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
-                    self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
-
-                    self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
-                    finished_on_the_run_merge_clusters = True
-
-                if map_cluster:
-                    current_instruction = "map_cluster"
-                    msg = "merge_clusters finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    map_cluster = self.map_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, star_index = star_index, RAM = RAM, out_tmp_dir = out_tmp_dir, unique = unique, jobs = jobs)
-                    if not map_cluster:
-                        msg = "Error in map_cluster"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-                if TE_counts:
-                    current_instruction = "TE_counts"
-                    msg = "map_cluster finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, s = s, jobs = jobs)
-                    if not TE_counts:
-                        msg = "Error in TE_counts"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-                if normalize_TE_counts:
-                    current_instruction = "normalize_TE_counts"
-                    msg = "TE_counts finished! Moving on to " + current_instruction
-                    log.write(msg)
-                    normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, factor = factor, unique = unique, jobs = jobs)
-                    if not normalize_TE_counts:
-                        msg = "Error in normalize_TE_counts"
-                        print(msg)
-                        log.write(msg)
-                        return False
-
-            except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
-                print(msg)
+            if mode == "merged" and self.merge_samples_dict is None:
+                msg = f"For merged mode please run merge_samples() or set_merge_clusters_outdir() first.\n"
+                print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
                 log.write(msg)
+                return 3
+            else:
+                msg = "Running whole pipeline.\n"
+                log.write(msg)
+                finished_on_the_run_merge_clusters = False
+                try:
+                    if mode == "merged":
+                        samples_dict = self.merge_samples_dict
+                    else:
+                        if mode == "per_sample":    
+                            samples_dict = self.samples
+                        else:
+                            msg = "Please specify a mode (merged/per_sample)"
+                            print(msg)
+                            log.write(msg)
+                            return 3
 
-            
+                    if groups is None: # then we group all samples together
+                        groups = {"merged_cluster" : [sample for sample in self.samples.keys()]}
+
+                    if tsv_to_bam:
+                        current_instruction = "tsv_to_bam"
+                        msg = "Running " + current_instruction
+                        log.write(msg)
+                        tsv_to_bam = self.tsv_to_bam_clusters(mode = mode, outdir = outdir, jobs = jobs)
+                        if not tsv_to_bam:
+                            msg = "Error in tsv_to_bam"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                    if filter_UMIs:
+                        current_instruction = "filter_UMIs"
+                        msg = "tsv_to_bam finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        filter_UMIs = self.filter_UMIs_clusters(mode = mode, outdir = outdir, jobs = jobs)
+                        if not filter_UMIs:
+                            msg = "Error in filter_UMIs"
+                            print(msg)
+                            log.write(msg)
+                            return False
+                        
+                    if bam_to_fastq:
+                        current_instruction = "bam_to_fastq"
+                        msg = "filter_UMIs finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        bam_to_fastq = self.bam_to_fastq_clusters(mode = mode, outdir = outdir, jobs = jobs)
+                        if not bam_to_fastq:
+                            msg = "Error in bam_to_fastq"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                    if concatenate_lanes:
+                        current_instruction = "concatenate_lanes"
+                        msg = "bam_to_fastq finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        concatenate_lanes = self.concatenate_lanes_clusters(mode = mode, outdir = outdir, jobs = jobs)
+                        if not concatenate_lanes:
+                            msg = "Error in concatenate_lanes"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                    if mode == "merged" and merge_clusters:
+                        # Please specify as a dictionary of strings : list
+                        if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
+                            msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
+                            log.write(msg)
+                            return 3
+
+                        self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
+                        self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
+
+                        current_instruction = "merge_clusters"
+                        msg = "concatenate_lanes finished! You selected merged as your mode, so moving on to " + current_instruction
+                        log.write(msg)
+                        merge_clusters = self.merge_clusters(outdir = outdir, groups = groups)
+                        if not merge_clusters:
+                            msg = "Error in merge_clusters"
+                            print(msg)
+                            log.write(msg)
+                            return False
+                        finished_on_the_run_merge_clusters = True
+                    # If you want merged samples, you have to register the groups to merge the clusters of
+                    # the samples in each group. If it the function merge_clusters was finished on the run,
+                    # there is no need to repeat the operation.
+                    if mode == "merged" and not finished_on_the_run_merge_clusters:
+                        if not isinstance(groups, dict) or not all([isinstance(group, list) for group in groups.values()]):
+                            msg = "Please specify the grouping of the samples. {'group1' : ['sample1', 'sample2', ...], 'group2' : ['sample3', 'sample4', ...]}"
+                            log.write(msg)
+                            return 3 
+
+                        self.merge_samples_groups = dict.fromkeys(list(groups.keys()))
+                        self.outdir_merged_clusters_groups = dict.fromkeys(list(groups.keys()))
+
+                        self.set_merge_clusters(os.path.join(outdir, "merged_cluster"), groups = groups)
+                        finished_on_the_run_merge_clusters = True
+
+                    if map_cluster:
+                        current_instruction = "map_cluster"
+                        msg = "merge_clusters finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        map_cluster = self.map_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, star_index = star_index, RAM = RAM, out_tmp_dir = out_tmp_dir, unique = unique, jobs = jobs)
+                        if not map_cluster:
+                            msg = "Error in map_cluster"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                    if TE_counts:
+                        current_instruction = "TE_counts"
+                        msg = "map_cluster finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, s = s, jobs = jobs)
+                        if not TE_counts:
+                            msg = "Error in TE_counts"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                    if normalize_TE_counts:
+                        current_instruction = "normalize_TE_counts"
+                        msg = "TE_counts finished! Moving on to " + current_instruction
+                        log.write(msg)
+                        normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, factor = factor, unique = unique, jobs = jobs)
+                        if not normalize_TE_counts:
+                            msg = "Error in normalize_TE_counts"
+                            print(msg)
+                            log.write(msg)
+                            return False
+
+                except KeyboardInterrupt:
+                    msg = Bcolors.HEADER + "User interrupted. Finishing instruction " + current_instruction + " for all clusters of all samples before closing." + Bcolors.ENDC + "\n"
+                    print(msg)
+                    log.write(msg)
