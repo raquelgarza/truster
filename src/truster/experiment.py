@@ -153,10 +153,22 @@ class Experiment:
                         if max_genes is not None:
                             max_genes = str(max_genes)
                         
-                        msg = "Clustering " + sample.sample_id + " using all cells.\n"
+
+                        msg = f"Running get_clusters() for sample {sample.sample_id}\n"
+                        log.write(msg)
+                        print(msg.strip())
+
                         executor.submit(sample.get_clusters, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size, dry_run)
                         self.clusters_outdir = outdir
-                        log.write(msg)
+                        
+                        #### TO ADD HERE: how to report back the exitcode? ####
+                        # msg = f"get_clusters() for sample {sample.sample_id} returned {exit_code}\n"
+                        # log.write(msg)
+                        # if exit_code == 0:
+                        #     print(f"{Bcolors.OKGREEN}{msg.strip()}{Bcolors.ENDC}")
+                        # else:
+                        #     print(f"{Bcolors.FAIL}{msg.strip()}{Bcolors.ENDC}")
+
                 
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
@@ -248,26 +260,33 @@ class Experiment:
     def merge_samples(self, outdir, normalization_method, res = 0.5, integrate_samples = False, max_size=500, dry_run = False):
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
-        samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
-        if not all([os.path.isfile(rds) for rds in samples_seurat_rds]):
-            missing_rds = '\n'.join([rds for rds in samples_seurat_rds if not os.path.isfile(rds)])
-            
-            msg = f"The following RDS files were not found:\n{missing_rds}\n"
-            log.write(msg)
-            print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
-        else:
-            # Sample ids
-            samples_ids = [sample.sample_id for sample in list(self.samples.values())]
+        with open(self.logfile, "a") as log:
+            samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
+            if not all([os.path.isfile(rds) for rds in samples_seurat_rds]):
+                missing_rds = [rds for rds in samples_seurat_rds if not os.path.isfile(rds)]
+                
+                if all([i == "" for i in missing_rds]):
+                    msg = f"Error: Please run get_clusters() before merge_samples()\n"
+                    log.write(msg)
+                    print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
+                else:
+                    missing_rds = '\n'.join(missing_rds)
+                    msg = f"The following RDS files were missing (did you delete them?):\n{missing_rds}\n"
+                    log.write(msg)
+                    print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
+            else:
+                # Sample ids
+                samples_ids = [sample.sample_id for sample in list(self.samples.values())]
 
-            # If we haven't made the merge before, create a directory to store the scripts needed to do so
-            if not os.path.exists("merge_samples_scripts"):
-                os.makedirs("merge_samples_scripts", exist_ok=True)
-            if not os.path.exists(outdir):
-                os.makedirs(outdir, exist_ok=True)
+                # If we haven't made the merge before, create a directory to store the scripts needed to do so
+                if not os.path.exists("merge_samples_scripts"):
+                    os.makedirs("merge_samples_scripts", exist_ok=True)
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir, exist_ok=True)
 
-            max_size = str(max_size)
+                max_size = str(max_size)
+                
             
-            with open(self.logfile, "a") as log:
                 msg = f"Running merge_samples()\n"
                 log.write(msg)
                 print(msg.strip())
