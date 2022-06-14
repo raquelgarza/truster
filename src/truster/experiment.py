@@ -79,21 +79,20 @@ class Experiment:
                             self.samples = path_to_samples(path)
                             msg = "Registered from " + path + "\n"
                             log.write(msg)
-                            print(msg)
 
                 elif isinstance(indir, str):
                     if os.path.isdir(indir):
                         self.samples = path_to_samples(indir)
-                        msg = "Registered from " + indir + "\n"
+                        msg = f"Registered from {indir}\n"
                         log.write(msg)
-                        print(msg)
                 else:
-                    msg = "When registering samples from path: indir does not exist (Check " + indir + ")\n"
+                    msg = f"When registering samples from path: indir does not exist (Check {indir})\n"
                     log.write(msg)
                     print(msg)
 
                 with open(self.logfile, "a") as log:
-                    msg = "Registered samples: " + str('\n'.join([sample.sample_id for sample in list(self.samples.values())]) + "\n")
+                    registered_samples = str('\n- '.join([sample.sample_id for sample in list(self.samples.values())]))
+                    msg = f"Registered samples:\n-{registered_samples}"
                     log.write(msg)
                     print(msg)
 
@@ -165,19 +164,24 @@ class Experiment:
 
     def set_clusters_outdir(self, clusters_outdir):
         with open(self.logfile, "a") as log:
-            self.clusters_outdir = clusters_outdir
-            # Register clusters in each sample 
-            for sample in list(self.samples.values()):
-                for i in os.listdir(clusters_outdir):
-                    if os.path.isdir(os.path.join(clusters_outdir, i)) and  i == sample.sample_id:
-                        msg = sample.register_clusters_from_path(os.path.join(clusters_outdir, sample.sample_id)) 
-                        log.write(msg)
-                    elif os.path.isdir(os.path.join(clusters_outdir, i)) and  i == sample.sample_name:
-                        msg = sample.register_clusters_from_path(os.path.join(clusters_outdir, sample.sample_id)) 
-                        log.write(msg)
-            msg = "The directory for clusters of individual samples is set to: " + clusters_outdir + "\n"
-            log.write(msg)
-            print(f"{Bcolors.OKBLUE}{msg}{Bcolors.ENDC}")
+            if os.path.isdir(clusters_outdir):
+                self.clusters_outdir = clusters_outdir
+                # Register clusters in each sample 
+                for sample in list(self.samples.values()):
+                    for i in os.listdir(clusters_outdir):
+                        if os.path.isdir(os.path.join(clusters_outdir, i)) and  i == sample.sample_id:
+                            msg = sample.register_clusters_from_path(os.path.join(clusters_outdir, sample.sample_id)) 
+                            log.write(msg)
+                        elif os.path.isdir(os.path.join(clusters_outdir, i)) and  i == sample.sample_name:
+                            msg = sample.register_clusters_from_path(os.path.join(clusters_outdir, sample.sample_id)) 
+                            log.write(msg)
+                msg = f"The directory for get_clusters() of individual samples is set to: {clusters_outdir}\n"
+                log.write(msg)
+                print(f"{Bcolors.OKBLUE}{msg}{Bcolors.ENDC}")
+            else:
+                msg = f"Error: Make sure {clusters_outdir} exists\n"
+                log.write(msg)
+                print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
 
     def velocity_all_samples(self, te_gtf, gene_gtf, jobs=1):
         try:
@@ -245,94 +249,111 @@ class Experiment:
         # Rscript {input.script} -i {rdata} -n {samplenames} -o {params.outpath}
         # Paths to RData files
         samples_seurat_rds = [sample.rdata_path for sample in list(self.samples.values())]
-
-        # Sample ids
-        samples_ids = [sample.sample_id for sample in list(self.samples.values())]
-
-        # If we haven't made the merge before, create a directory to store the scripts needed to do so
-        if not os.path.exists("merge_samples_scripts"):
-            os.makedirs("merge_samples_scripts", exist_ok=True)
-        if not os.path.exists(outdir):
-            os.makedirs(outdir, exist_ok=True)
-
-        max_size = str(max_size)
-        
-        with open(self.logfile, "a") as log:
-            msg = "Merging samples on to a combined clustering\n"
+        if not all([os.path.isfile(rds) for rds in samples_seurat_rds]):
+            missing_rds = '\n'.join([rds for rds in samples_seurat_rds if not os.path.isfile(rds)])
+            
+            msg = f"The following RDS files were not found:\n{missing_rds}\n"
             log.write(msg)
+            print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
+        else:
+            # Sample ids
+            samples_ids = [sample.sample_id for sample in list(self.samples.values())]
 
-            # Run script ../r_scripts/merge_samples.R with input (-i) of the RData paths
-            # and output (-o) of the output directory desired, -s for sample ids,
-            # and -e for sample names used in cellranger
-            cwd = os.path.dirname(os.path.realpath(__file__))
+            # If we haven't made the merge before, create a directory to store the scripts needed to do so
+            if not os.path.exists("merge_samples_scripts"):
+                os.makedirs("merge_samples_scripts", exist_ok=True)
+            if not os.path.exists(outdir):
+                os.makedirs(outdir, exist_ok=True)
+
+            max_size = str(max_size)
             
-            if integrate_samples:
-                integrate_samples = "TRUE"
-            else:
-                integrate_samples = "FALSE"
-
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samples_seurat_rds), "-o", outdir, "-r", str(res), "-s", ','.join(samples_ids), "-e", self.name, "-n", normalization_method, "-S", max_size, "-I", integrate_samples]
-            result = run_instruction(cmd = cmd, fun = "merge_samples", name = self.name, fun_module = "merge_samples", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
-            exit_code = result[1]
-                
-            # If it finished succesfully then 
-            if exit_code == 0:
-                # For each of the registered samples
-                self.merge_samples_dict = copy.deepcopy(self.samples)
-
-                # Empty the clusters bc we made new ones (shared/merged)
-                for k,v in self.merge_samples_dict.items():
-                    v.empty_clusters()
-            
-                # Make a dictionary of the same sort as the registered samples
-                # for example {sample1 : [cluster1, cluster2]}
-                # with the clusters that we created in the outdir we passed to R
-                # They all have the words "merged.clusters", after that is the cluster number/name
-                # Before that is the sample id, which we can use as a key in the 
-                # merge_samples_clusters dictionary and just append the cluster objects
-                # To the empty list we now have
-                for i in os.listdir(outdir):
-                    if(i.endswith(".tsv")):
-                        cluster_name = i.split(".tsv")[0] # sample_A_merged.clusters_0
-                        sample_id = cluster_name.split("_merged.clusters")[0] # sample_A
-                        cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(outdir, i), logfile = self.logfile)
-                        # Dictionary merge_samples contain the barcodes of a cluster (of the merged object) per sample 
-                        self.merge_samples_dict[sample_id].clusters.append(cluster)
-                self.merge_samples_outdir = outdir
-
-                msg = f"merge_samples() finished succesfully. Outdir: {clusters_outdir}\n"
+            with open(self.logfile, "a") as log:
+                msg = f"Running merge_samples()\n"
                 log.write(msg)
-                print(f"{Bcolors.OKGREEN}{msg}{Bcolors.ENDC}")
+                print(msg.strip())
 
-                return True
-            else:
-                return False
+                # Run script ../r_scripts/merge_samples.R with input (-i) of the RData paths
+                # and output (-o) of the output directory desired, -s for sample ids,
+                # and -e for sample names used in cellranger
+                cwd = os.path.dirname(os.path.realpath(__file__))
+                
+                if integrate_samples:
+                    integrate_samples = "TRUE"
+                else:
+                    integrate_samples = "FALSE"
+
+                cmd = ["Rscript", os.path.join(cwd, "r_scripts/merge_samples.R"), "-i", ','.join(samples_seurat_rds), "-o", outdir, "-r", str(res), "-s", ','.join(samples_ids), "-e", self.name, "-n", normalization_method, "-S", max_size, "-I", integrate_samples]
+                result = run_instruction(cmd = cmd, fun = "merge_samples", name = self.name, fun_module = "merge_samples", dry_run = dry_run, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                exit_code = result[1]
+                    
+                # If it finished succesfully then 
+                if exit_code == 0:
+                    # For each of the registered samples
+                    self.merge_samples_dict = copy.deepcopy(self.samples)
+
+                    # Empty the clusters bc we made new ones (shared/merged)
+                    for k,v in self.merge_samples_dict.items():
+                        v.empty_clusters()
+                
+                    # Make a dictionary of the same sort as the registered samples
+                    # for example {sample1 : [cluster1, cluster2]}
+                    # with the clusters that we created in the outdir we passed to R
+                    # They all have the words "merged.clusters", after that is the cluster number/name
+                    # Before that is the sample id, which we can use as a key in the 
+                    # merge_samples_clusters dictionary and just append the cluster objects
+                    # To the empty list we now have
+                    for i in os.listdir(outdir):
+                        if(i.endswith(".tsv")):
+                            cluster_name = i.split(".tsv")[0] # sample_A_merged.clusters_0
+                            sample_id = cluster_name.split("_merged.clusters")[0] # sample_A
+                            cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(outdir, i), logfile = self.logfile)
+                            # Dictionary merge_samples contain the barcodes of a cluster (of the merged object) per sample 
+                            self.merge_samples_dict[sample_id].clusters.append(cluster)
+                    self.merge_samples_outdir = outdir
+
+                    msg = f"merge_samples() finished succesfully. Outdir: {self.merge_samples_outdir}\n"
+                    log.write(msg)
+                    print(f"{Bcolors.OKGREEN}{msg}{Bcolors.ENDC}")
+
+                    return True
+                else:
+                    msg = f"Something went wrong during merge_samples(). Please refer to the SLURM error file\n"
+                    log.write(msg)
+                    print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
+
+                    return False
 
     def set_merge_samples_outdir(self, merge_samples_outdir):
-        self.merge_samples_outdir = merge_samples_outdir
-        # For each of the registered samples
-        self.merge_samples_dict = copy.deepcopy(self.samples)
-    
-        # Empty the clusters bc we made new ones (shared/merged)
-        for k,v in self.merge_samples_dict.items():
-            v.empty_clusters()
+        if os.path.isdir(merge_samples_outdir):
+            self.merge_samples_outdir = merge_samples_outdir
+            # For each of the registered samples
+            self.merge_samples_dict = copy.deepcopy(self.samples)
+        
+            # Empty the clusters bc we made new ones (shared/merged)
+            for k,v in self.merge_samples_dict.items():
+                v.empty_clusters()
 
-        for i in os.listdir(merge_samples_outdir):
-            if(i.endswith(".tsv")):
-                cluster_name = i.split(".tsv")[0]
-                sample_id = cluster_name.split("_merged.clusters")[0]
-                cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(merge_samples_outdir, i), logfile = self.logfile)
+            for i in os.listdir(merge_samples_outdir):
+                if(i.endswith(".tsv")):
+                    cluster_name = i.split(".tsv")[0]
+                    sample_id = cluster_name.split("_merged.clusters")[0]
+                    cluster = Cluster(cluster_name = cluster_name, tsv = os.path.join(merge_samples_outdir, i), logfile = self.logfile)
 
-                self.merge_samples_dict[sample_id].clusters.append(cluster)
+                    self.merge_samples_dict[sample_id].clusters.append(cluster)
 
-        with open(self.logfile, "a") as log:
-            msg = "The directory for clusters of combined samples is set to: " + merge_samples_outdir + ".\n\n"
+            with open(self.logfile, "a") as log:
+                msg = "The directory given to register merge_samples output is set to: " + merge_samples_outdir + "\n"
+                log.write(msg)
+                print(f"{Bcolors.OKBLUE}{msg}{Bcolors.ENDC}")
+
+                registered_clusters = [sample.clusters for sample_id,sample in self.merge_samples_dict.items()]
+                names_registered_clusters = ', '.join([cluster.cluster_name for list_of_clusters in registered_clusters for cluster in list_of_clusters])
+                msg = "Registered merge_samples clusters per sample: " + names_registered_clusters + "\n\n"
+                log.write(msg)
+        else:
+            msg = f"The directory given to register merge_samples outdir does not exist ({clusters_outdir})\n"
             log.write(msg)
-
-            registered_clusters = [sample.clusters for sample_id,sample in self.merge_samples_dict.items()]
-            names_registered_clusters = ', '.join([cluster.cluster_name for list_of_clusters in registered_clusters for cluster in list_of_clusters])
-            msg = "Registered merge_samples clusters per sample: " + names_registered_clusters + "\n\n"
-            log.write(msg)
+            print(f"{Bcolors.FAIL}{msg}{Bcolors.ENDC}")
 
     def tsv_to_bam_clusters(self, mode, outdir, jobs=1):
         print("Running tsv_to_bam with " + str(jobs) + " jobs.\n")
