@@ -88,8 +88,7 @@ sample <- subset(sample, subset = nFeature_RNA > min_genes & nFeature_RNA < max_
 print(paste("Min genes", min_genes))
 print(paste("Max genes", max_genes))
 
-margin <- ifelse(normalization_method == "CLR", 2, NULL) # If CLR, normalize per cell (2)
-sample <- NormalizeData(sample, normalization.method = normalization_method, assay = "RNA", margin = margin) 
+sample <- NormalizeData(sample, normalization.method = normalization_method, assay = "RNA", margin = 2) 
 sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(sample)
 sample <- RenameCells(sample, sample$orig.ident)

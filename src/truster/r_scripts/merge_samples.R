@@ -69,8 +69,7 @@ if(integrate == TRUE){
   experiment <- merge(samples[[ids[1]]], y=samples[ids[-1]])
   assay = "RNA"
   
-  margin <- ifelse(normalization_method == "CLR", 2, NULL) # If CLR, normalize per cell (2)
-  experiment <- NormalizeData(experiment, normalization.method = normalization_method, assay = assay, margin = margin) 
+  experiment <- NormalizeData(experiment, normalization.method = normalization_method, assay = assay, margin = 2) 
   experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000, assay = assay)
 }
 
