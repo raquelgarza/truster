@@ -20,7 +20,7 @@ option_list = list(
   make_option(c("-r", "--resolution"), type="character", default=0.5,
               help="Resolution. Default 0.5", metavar="character"),
   make_option(c("-n", "--normalizationMethod"), type="character", default="LogNormalize",
-              help = "Seurat normalization method (LogNormalize | CLR)", metavar = "character"),
+              help = "Seurat normalization method (LogNormalize | CLR | RC)", metavar = "character"),
   make_option(c("-I", "--integrateSamples"), type="character", default = "FALSE", 
               help = "Integrate samples (Integration of multiple datasets, correct for batch effects or technology differences) (TRUE | FALSE). Default: FALSE", metavar = "character"),
   make_option(c("-S", "--maxSize"), type="character", default=500,
@@ -68,13 +68,16 @@ if(integrate == TRUE){
 }else{
   experiment <- merge(samples[[ids[1]]], y=samples[ids[-1]])
   assay = "RNA"
-  # experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
-  experiment <- NormalizeData(experiment, normalization.method = normalization_method, scale.factor = 10000, assay = assay)
+  
+  margin <- ifelse(normalization_method == "CLR", 2, NULL) # If CLR, normalize per cell (2)
+  experiment <- NormalizeData(experiment, normalization.method = normalization_method, assay = assay, margin = margin) 
   experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000, assay = assay)
 }
 
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes, assay = assay)
+experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
+
 experiment <- RunPCA(experiment, features = VariableFeatures(object = experiment), assay = assay)
 experiment <- FindNeighbors(experiment, dims = 1:10, assay = assay)
 experiment <- FindClusters(experiment, resolution = res)
