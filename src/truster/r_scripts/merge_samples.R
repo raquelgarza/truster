@@ -75,7 +75,7 @@ if(integrate == TRUE){
 
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes, assay = assay)
-experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
+# experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
 
 experiment <- RunPCA(experiment, features = VariableFeatures(object = experiment), assay = assay)
 experiment <- FindNeighbors(experiment, dims = 1:10, assay = assay)
