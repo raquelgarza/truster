@@ -114,8 +114,9 @@ coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
 
 cluster_total_num_reads <- function(cluster){
-  tmp <- FetchData(seurat.obj, vars=c(rownames(seurat.obj), "groupping_factor") )
-  return(sum(rowSums(tmp[which(tmp[,"groupping_factor"] == cluster), rownames(seurat.obj)])))
+  tmp <- FetchData(seurat.obj, vars=c("groupping_factor") )
+  raw_counts <- GetAssayData(subset(seurat.obj, groupping_factor == cluster), slot = "counts")
+  return(sum(colSums(raw_counts)))
 }
 coldata$num_reads <- sapply(coldata$cluster, FUN = cluster_total_num_reads)
 
@@ -157,7 +158,7 @@ seurat.obj[["TE_raw"]] <- CreateAssayObject(counts = te_counts_melt_percell)
 
 te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)]
 te_counts_size_reads_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)
-te_counts_size_reads_norm <- te_counts_size_reads_norm[, rownames(coldata)] * 1e+7
+te_counts_size_reads_norm <- log1p(te_counts_size_reads_norm[, rownames(coldata)] * 1e+7)
 
 te_counts_size_reads_norm$te_id <- rownames(te_counts_size_reads_norm)
 te_counts_size_reads_norm_melt <- reshape2::melt(te_counts_size_reads_norm, by=list(c('te_id')))
