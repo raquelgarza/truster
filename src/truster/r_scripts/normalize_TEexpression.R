@@ -7,6 +7,15 @@ library(data.table)
 library(dplyr)
 library(patchwork)
 set.seed(10)
+# 
+# mode <- "merged" 
+# group_name <- "control"
+# by_factor <- "seurat_clusters" 
+# samples <- c("DA428","DA488","ASAP14","DA480","DA806","DA795","DA785","DA804_ASAP49_Ctl_NP18-159_PFCTX_Seq163A")
+# outdir <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/clusterPipeline/TE_counts_normalized/multiple/"
+# indir <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/clusterPipeline/TE_counts/multiple/"
+# rds <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/tbi_ASAP_controls.rds"
+# obj_name <- "tbi_ASAP_controls"
 
 # Bed file of transposons
 # Tab file of classification of transposons
@@ -113,15 +122,9 @@ rownames(coldata) <- coldata$name
 coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
 
-cluster_total_num_reads <- function(cluster){
-  tmp <- FetchData(seurat.obj, vars=c("groupping_factor") )
-  raw_counts <- GetAssayData(subset(seurat.obj, groupping_factor == cluster), slot = "counts")
-  return(sum(colSums(raw_counts)))
-}
-coldata$num_reads <- sapply(coldata$cluster, FUN = cluster_total_num_reads)
-
 TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENS'))
 
+#### TE_norm_cluster_size ####
 rownames(coldata) <- coldata$name
 te_counts <- TEcounts[, rownames(coldata)]
 te_counts_size_norm <- TEcounts[, rownames(coldata)]
@@ -144,6 +147,7 @@ te_counts_size_norm_melt_percell <- te_counts_size_norm_melt_percell[,-1]
 # Norm by cluster size
 seurat.obj[["TE_norm_cluster_size"]] <- CreateAssayObject(counts = te_counts_size_norm_melt_percell)
 
+#### TE_raw ####
 te_counts$te_id <- rownames(te_counts)
 te_counts_melt <- reshape2::melt(te_counts, by=list(c('te_id')))
 te_counts_melt$cluster <- sapply(str_split(te_counts_melt$variable, paste(obj_name, group_name, "", sep="_")),`[[`, 2)
@@ -156,8 +160,17 @@ te_counts_melt_percell <- te_counts_melt_percell[,-1]
 
 seurat.obj[["TE_raw"]] <- CreateAssayObject(counts = te_counts_melt_percell)
 
-te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)]
-te_counts_size_reads_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$num_reads)
+#### TE_norm_cluster_size_num_reads ####
+te_counts <- TEcounts[, rownames(coldata)]
+te_counts_size_norm <- TEcounts[, rownames(coldata)]
+te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$cluster.size)
+
+tmp <- FetchData(seurat.obj, vars=c("groupping_factor") )
+raw_counts <- GetAssayData(seurat.obj, slot = "counts", assay="RNA")
+total_num_reads <- sum(colSums(raw_counts))
+
+te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
+te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)] / total_num_reads
 te_counts_size_reads_norm <- log1p(te_counts_size_reads_norm[, rownames(coldata)] * 1e+7)
 
 te_counts_size_reads_norm$te_id <- rownames(te_counts_size_reads_norm)
