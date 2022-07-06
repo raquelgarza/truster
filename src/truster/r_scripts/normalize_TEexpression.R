@@ -85,9 +85,9 @@ colnames(cluster_sizes) <- c('cluster', 'cluster.size')
 files <- list.files(indir, recursive = F)
 
 if( mode == "merged"){
-  # This might be a problem if for example we have a couple of samples called sample1 and sample11
-  files <- files[which(grepl(paste(obj_name, group_name, sep="_"), files))]
   cluster_sizes$name <- paste(obj_name, group_name, cluster_sizes$cluster, sep='_')
+  regex_startswith <- paste("^", cluster_sizes$name, sep="", collapse = "|")
+  files <- files[which(grepl(regex_startswith, files))]
 }else{
   cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
 }
