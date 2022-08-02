@@ -23,18 +23,20 @@ class Sample:
         dry_run = False
         if not os.path.exists("quantify_scripts/"):
             os.makedirs("quantify_scripts", exist_ok=True)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+        sample_outdir = os.path.join(outdir, self.sample_id)
         with open(self.logfile, "a") as log:
             try:
                 cmd = ["cellranger count"]
                 if nuclei:
                     cmd.append("--include-introns")
-                cmd.extend(["--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir, " || exit 2\nmv", self.sample_id, outdir])
+                cmd.extend(["--id", self.sample_id, "--transcriptome", cr_index, "--fastqs", indir, " || exit 2\nmv", self.sample_id, sample_outdir])
                 log.write("About to run instruction")
                 result = run_instruction(cmd = cmd, fun = "quantify", fun_module = "quantify", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
                 exit_code = result[1]
                 if exit_code == 0:
-                    # subprocess.call("mv", self.sample_id, outdir)
-                    self.quantify_outdir = outdir
+                    self.quantify_outdir = sample_outdir
                 return exit_code
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"

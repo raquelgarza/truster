@@ -118,10 +118,9 @@ class Experiment:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
                     for sample in self.samples.values():
                         sample_indir = sample.raw_path
-                        sample_outdir = os.path.join(outdir, sample.sample_id)
                         sample_nuclei = samples_nuclei[sample.sample_id]
                         log.write("going to samples' quantify function")
-                        executor.submit(sample.quantify, cr_index, sample_indir, sample_outdir, sample_nuclei)
+                        executor.submit(sample.quantify, cr_index, sample_indir, outdir, sample_nuclei)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
             print(msg)
