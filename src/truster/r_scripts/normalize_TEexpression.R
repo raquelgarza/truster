@@ -189,6 +189,8 @@ seurat.obj[["TE_norm_cluster_size_num_reads"]] <- CreateAssayObject(counts = te_
 te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
 te_counts_size_reads_norm <- te_counts_size_reads_norm[,c(colnames(te_counts_size_reads_norm)[ncol(te_counts_size_reads_norm)], colnames(te_counts_size_reads_norm)[-ncol(te_counts_size_reads_norm)])]
 te_counts <- te_counts[,c(colnames(te_counts)[ncol(te_counts)], colnames(te_counts)[-ncol(te_counts)])]
+te_counts$te_id <- rownames(te_counts)
+te_counts <- te_counts[,c("te_id",colnames(te_counts)[-ncol(te_counts)])]
 
 file_name <- ifelse(is.null(group_name), "TE_norm_cluster_size_matrix.csv", paste(group_name, "TE_norm_cluster_size_matrix.csv", sep="_"))
 fwrite(te_counts_size_norm, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
