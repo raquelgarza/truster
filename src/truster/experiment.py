@@ -77,13 +77,13 @@ class Experiment:
                     for path in indir:
                         if os.path.isdir(path):
                             self.samples = path_to_samples(path)
-                            msg = "Registered from " + path + "\n"
+                            msg = f"\nRegistered from {path}\n"
                             log.write(msg)
 
                 elif isinstance(indir, str):
                     if os.path.isdir(indir):
                         self.samples = path_to_samples(indir)
-                        msg = f"Registered from {indir}\n"
+                        msg = f"\nRegistered from {indir}\n"
                         log.write(msg)
                 else:
                     msg = f"When registering samples from path: indir does not exist (Check {indir})\n"
@@ -92,7 +92,7 @@ class Experiment:
 
                 with open(self.logfile, "a") as log:
                     registered_samples = str('\n- '.join([sample.sample_id for sample in list(self.samples.values())]))
-                    msg = f"Registered samples:\n-{registered_samples}"
+                    msg = f"Registered samples:\n- {registered_samples}"
                     log.write(msg)
                     print(msg)
 
@@ -119,7 +119,6 @@ class Experiment:
                     for sample in self.samples.values():
                         sample_indir = sample.raw_path
                         sample_nuclei = samples_nuclei[sample.sample_id]
-                        log.write("going to samples' quantify function")
                         executor.submit(sample.quantify, cr_index, sample_indir, outdir, sample_nuclei)
         except KeyboardInterrupt:
             msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
