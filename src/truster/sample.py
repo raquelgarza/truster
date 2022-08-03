@@ -89,37 +89,48 @@ class Sample:
         self.clusters = []
 
     def get_clusters(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size=500, dry_run = False):
+        
         with open(self.logfile, "a") as log:
-            try:
-                if not os.path.exists("get_clusters_scripts"):
-                    os.makedirs("get_clusters_scripts", exist_ok=True)
-                if not os.path.exists(outdir):
-                    os.makedirs(outdir, exist_ok=True)
+            if hasattr(self, "quantify_outdir"):
+                try:
+                    msg = f"Running get_clusters() for sample {self.sample_id}\n"
+                    log.write(msg)
+                    print(msg.strip())
 
-                res = str(res)
-                max_size = str(max_size)
-                
-                cwd = os.path.dirname(os.path.realpath(__file__))
-                cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size]
+                    if not os.path.exists("get_clusters_scripts"):
+                        os.makedirs("get_clusters_scripts", exist_ok=True)
+                    if not os.path.exists(outdir):
+                        os.makedirs(outdir, exist_ok=True)
 
-                if perc_mitochondrial is not None:
-                    cmd.extend(["-p", str(perc_mitochondrial)])
-                if min_genes is not None:
-                    cmd.extend(["-m", str(min_genes)])
-                if max_genes is not None:
-                    cmd.extend(["-M", str(max_genes)])
+                    res = str(res)
+                    max_size = str(max_size)
+                    
+                    cwd = os.path.dirname(os.path.realpath(__file__))
+                    cmd = [os.path.join(cwd, "r_scripts/get_clusters.R"), "-i", os.path.join(self.quantify_outdir, "outs/filtered_feature_bc_matrix"), "-o", outdir, "-s", self.sample_id, "-r", res, "-n", normalization_method, "-S", max_size]
 
-                result = run_instruction(cmd = cmd, fun = "get_clusters", fun_module = "get_clusters", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
-                exit_code = result[1]
+                    if perc_mitochondrial is not None:
+                        cmd.extend(["-p", str(perc_mitochondrial)])
+                    if min_genes is not None:
+                        cmd.extend(["-m", str(min_genes)])
+                    if max_genes is not None:
+                        cmd.extend(["-M", str(max_genes)])
 
-                if exit_code == 0:
-                    self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
-                    self.rdata_path = os.path.join(outdir, (self.sample_id + ".rds"))
-                return exit_code
+                    result = run_instruction(cmd = cmd, fun = "get_clusters", fun_module = "get_clusters", dry_run = dry_run, name = self.sample_id, logfile = self.logfile, slurm = self.slurm, modules = self.modules)
+                    exit_code = result[1]
 
-            except KeyboardInterrupt:
-                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                    if exit_code == 0:
+                        self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(outdir, j), self.logfile) for j in os.listdir(outdir) if j.endswith(".tsv")]
+                        self.rdata_path = os.path.join(outdir, (self.sample_id + ".rds"))
+                    return exit_code
+
+                except KeyboardInterrupt:
+                    msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                    log.write(msg)
+            else:
+                msg = f"get_clusters() error: Quantification directory not found for sample {self.sample_id}\n"
                 log.write(msg)
+                print(f"{Bcolors.FAIL}{msg.strip()}{Bcolors.ENDC}")
+                return 4
 
     def register_clusters_from_path(self, path):
         self.clusters = [Cluster(j.split(".tsv")[0], os.path.join(path, j), self.logfile) for j in os.listdir(path) if j.endswith(".tsv")]

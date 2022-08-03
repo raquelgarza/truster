@@ -137,6 +137,7 @@ class Experiment:
                 msg = f"Quantification directory not found for sample {sample_id}\n"
                 log.write(msg)
                 print(f"{Bcolors.FAIL}{msg.strip()}{Bcolors.ENDC}")
+                return 4
                 
     def get_clusters_all_samples(self, outdir, res = 0.5, perc_mitochondrial = None, min_genes = None, max_genes = None, normalization_method = "LogNormalize", max_size = 500, dry_run = False, jobs=1):
         with open(self.logfile, "a") as log:
@@ -151,11 +152,6 @@ class Experiment:
                         if max_genes is not None:
                             max_genes = str(max_genes)
                         
-
-                        msg = f"Running get_clusters() for sample {sample.sample_id}\n"
-                        log.write(msg)
-                        print(msg.strip())
-
                         executor.submit(sample.get_clusters, sample_outdir, res, perc_mitochondrial, min_genes, max_genes, normalization_method, max_size, dry_run)
                         self.clusters_outdir = outdir
                         
