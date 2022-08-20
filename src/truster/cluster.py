@@ -111,11 +111,19 @@ class Cluster:
                     return("", 2) # Return error
                     
                 cmd = ["cat", " ".join(files_to_concatenate), ">", fastq_out]
-                result = run_instruction(cmd = cmd, fun = "concatenate_lanes", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "concatenate_lanes", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
-                exit_code = result[1]
-
-                if exit_code == 0:
-                    self.outdirs["concatenate_lanes"] = outdir
+                if slurm is not None: # if we can use slurm, we do
+                    result = run_instruction(cmd = cmd, fun = "concatenate_lanes", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "concatenate_lanes", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
+                    exit_code = result[1]
+                    if exit_code == 0:
+                        self.outdirs["concatenate_lanes"] = outdir
+                else: # otherwise we need to reformulate the cat for subprocess.call
+                    cmd = [fastq.replace(" ", "\ ") for fastq in files_to_concatenate]
+                    cmd.insert(0, "cat")
+                    with open(fastq_out, "w") as fout:
+                        result = subprocess.call(cmd, shell = False, stdout=fout, universal_newlines=True)        
+                    # If something went wrong, we return False
+                    if result == 0:
+                        self.outdirs["concatenate_lanes"] = outdir
                 return result
             except KeyboardInterrupt:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
