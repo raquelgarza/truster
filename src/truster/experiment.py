@@ -14,6 +14,8 @@ class Experiment:
 
     def __init__(self, name="", slurm_path=None, modules_path=None):
         self.name = name
+        self.slurm = None
+        self.modules = None
         self.slurm_path = slurm_path
         self.modules_path = modules_path
         self.samples = {}
