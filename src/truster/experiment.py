@@ -523,8 +523,11 @@ class Experiment:
                             indir = os.path.join(outdir, "bam_to_fastq/", sample_id)
                             outdir_sample = os.path.join(outdir, "concatenate_lanes/", sample_id)
                             self.concatenate_lanes_results.append(executor.submit(cluster.concatenate_lanes, sample_id, indir, outdir_sample, self.slurm, self.modules))
-                            
-                concatenate_lanes_exit_codes = [i.result()[1] for i in self.concatenate_lanes_results]
+                
+                if self.slurm is not None:
+                    concatenate_lanes_exit_codes = [i.result()[1] for i in self.concatenate_lanes_results]
+                else:
+                    concatenate_lanes_exit_codes = [i.result() for i in self.concatenate_lanes_results]    
                 concatenate_lanes_all_success = all(exit_code == 0 for exit_code in concatenate_lanes_exit_codes)
 
                 if concatenate_lanes_all_success:
