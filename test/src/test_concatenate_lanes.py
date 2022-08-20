@@ -4,26 +4,26 @@ import truster
 import os
 import gzip
 
-raw_path = "/Volumes/My Passport/trusTEr/test/raw/"
+raw_path = "/Volumes/MyPassport/trusTEr/test/raw/"
 lunarc = "config_files/lunarc_config.json"
 modules = "config_files/software_modules.json"
 
 test = truster.Experiment("test", lunarc, modules)
 test.register_samples_from_path(raw_path)
 
-merge_samples_outdir = "/Volumes/My Passport/trusTEr/test/3_merge_samples/"
+merge_samples_outdir = "/Volumes/MyPassport/trusTEr/test/3_merge_samples/"
 test.set_merge_samples_outdir(merge_samples_outdir)
 
 test.slurm = None
 test.modules = None
-test.concatenate_lanes_clusters(mode="merged", outdir="/Volumes/My Passport/trusTEr/test/3_merge_samples/cluster_pipeline/")
+test.concatenate_lanes_clusters(mode="merged", outdir="/Volumes/MyPassport/trusTEr/test/3_merge_samples/cluster_pipeline/")
 
 # Expected
-expected_merge_clusters_outdir = "/Volumes/My Passport/trusTEr/test/3_merge_samples/cluster_pipeline/concatenate_lanes/expected_results"
+expected_merge_clusters_outdir = "/Volumes/MyPassport/trusTEr/test/3_merge_samples/cluster_pipeline/expected_results/concatenate_lanes/"
 with gzip.open(os.path.join(expected_merge_clusters_outdir, "sample_A", "sample_A_merged.clusters_0_R2.fastq.gz"), "rt") as sample_A_0:
     expected_sample_A_0_file = sample_A_0.readlines()
 # Actual
-merge_clusters_outdir = "/Volumes/My Passport/trusTEr/test/3_merge_samples/cluster_pipeline/concatenate_lanes"
+merge_clusters_outdir = "/Volumes/MyPassport/trusTEr/test/3_merge_samples/cluster_pipeline/concatenate_lanes"
 with gzip.open(os.path.join(merge_clusters_outdir, "sample_A", "sample_A_merged.clusters_0_R2.fastq.gz"), "rt") as sample_A_0:
     sample_A_0_file = sample_A_0.readlines()
 
