@@ -170,7 +170,7 @@ raw_counts <- GetAssayData(seurat.obj, slot = "counts", assay="RNA")
 total_num_reads <- sum(colSums(raw_counts))
 
 te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
-te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)] / total_num_reads
+te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)] / total_num_reads[rownames(coldata)]
 te_counts_size_reads_norm <- log1p(te_counts_size_reads_norm[, rownames(coldata)] * 1e+7)
 
 te_counts_size_reads_norm$te_id <- rownames(te_counts_size_reads_norm)
