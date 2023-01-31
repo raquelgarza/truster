@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/post/creating-a-new-theme/</loc>
+    <lastmod>2023-01-31T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/post/migrate-from-jekyll/</loc>
+    <lastmod>2023-01-31T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/about/</loc>
+    <lastmod>2023-01-31T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/post/</loc>
+    <lastmod>2023-01-31T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/</loc>
+    <lastmod>2023-01-31T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/contact/</loc>
+    <lastmod>2014-04-09T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/tags/</loc>
+  </url>
+  
+  <url>
+    <loc>https://raquelgarza.github.io/github_pages_truster_test/topics/</loc>
+  </url>
+  
+</urlset>
