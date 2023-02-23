@@ -68,11 +68,12 @@ if(integrate == TRUE){
 }else{
   experiment <- merge(samples[[ids[1]]], y=samples[ids[-1]])
   assay = "RNA"
-  
+
   experiment <- NormalizeData(experiment, normalization.method = normalization_method, assay = assay, margin = 2) 
   experiment <- FindVariableFeatures(experiment, selection.method = "vst", nfeatures = 2000, assay = assay)
 }
-
+rm(samples)
+gc()
 all.genes <- rownames(experiment)
 experiment <- ScaleData(experiment, features = all.genes, assay = assay)
 # experiment[["percent.mt"]] <- PercentageFeatureSet(experiment, pattern = "^MT-")
