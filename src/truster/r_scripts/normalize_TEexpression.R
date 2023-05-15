@@ -7,15 +7,14 @@ library(data.table)
 library(dplyr)
 library(patchwork)
 set.seed(10)
-# 
-# mode <- "merged" 
-# group_name <- "control"
-# by_factor <- "seurat_clusters" 
-# samples <- c("DA428","DA488","ASAP14","DA480","DA806","DA795","DA785","DA804_ASAP49_Ctl_NP18-159_PFCTX_Seq163A")
-# outdir <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/clusterPipeline/TE_counts_normalized/multiple/"
-# indir <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/clusterPipeline/TE_counts/multiple/"
-# rds <- "/Volumes/My Passport/TBI/03.05.22/3_combinedUMAP_perCluster_ASAP_controls/tbi_ASAP_controls.rds"
-# obj_name <- "tbi_ASAP_controls"
+# mode <- "merged"
+# group_name <- "am_pd"
+# by_factor <- "seurat_clusters"
+# samples <- c("DA807","DA811","DA812","DA814","DA815","DA778","DA779","DA780","DA783","DA803_ASAP48_Ctl_NP17-256_AM_Seq163A","DA800_ASAP20_PD_NP16-160_AM_Seq163A","DA474","DA802_ASAP40_PD_NP19-23_AM_Seq163A")
+# outdir <- "/Volumes/MyPassport/ASAP_3prime/4_microglia/clusterPipeline/TE_counts_normalized/multiple/"
+# indir <- "/Volumes/MyPassport/ASAP_3prime/4_microglia/clusterPipeline/TE_counts/multiple/"
+# rds <- "/Volumes/MyPassport/ASAP_3prime/4_microglia/asap_microglia.rds"
+# obj_name <- "asap_microglia"
 
 # Bed file of transposons
 # Tab file of classification of transposons
@@ -76,20 +75,20 @@ if(mode == "merged"){
 
 # If there are more than one grouping factor, create one metadata column for the different combinations of it. If there is just one factor, the metadata column will be called the same
 factors_by_cell <- FetchData(seurat.obj, vars = by_factor)
-factors_by_cell$groupping_factor <- apply(factors_by_cell, 1, function(x) paste(x, collapse = "_"));
+factors_by_cell$groupping_factor <- apply(factors_by_cell, 1, function(x) paste(x, collapse = "_"))
 seurat.obj <- AddMetaData(seurat.obj, metadata = factors_by_cell$groupping_factor, col.name = "groupping_factor")
 
 cluster_sizes <- data.frame(cluster.size=table(FetchData(seurat.obj, "groupping_factor")))  
-colnames(cluster_sizes) <- c('cluster', 'cluster.size')
+colnames(cluster_sizes) <- c('groupping_factor', 'cluster.size')
 
 files <- list.files(indir, recursive = F)
 
 if( mode == "merged"){
-  cluster_sizes$name <- paste(obj_name, group_name, cluster_sizes$cluster, sep='_')
+  cluster_sizes$name <- paste(obj_name, group_name, cluster_sizes$groupping_factor, sep='_')
   regex_startswith <- paste("^", cluster_sizes$name, sep="", collapse = "|")
   files <- files[which(grepl(regex_startswith, files))]
 }else{
-  cluster_sizes$name <- paste(obj_name, cluster_sizes$cluster, sep='_')
+  cluster_sizes$name <- paste(obj_name, cluster_sizes$groupping_factor, sep='_')
 }
 
 coldata <- data.frame()
@@ -164,21 +163,13 @@ seurat.obj[["TE_raw"]] <- CreateAssayObject(counts = te_counts_melt_percell)
 te_counts <- TEcounts[, rownames(coldata)]
 te_counts_size_norm <- TEcounts[, rownames(coldata)]
 te_counts_size_norm[] <- mapply('/', te_counts_size_norm[, rownames(coldata)], coldata$cluster.size)
-
-tmp <- FetchData(seurat.obj, vars=c("groupping_factor") )
-raw_counts <- GetAssayData(seurat.obj, slot = "counts", assay="RNA")
-total_num_reads <- sum(colSums(raw_counts))
-
 te_counts_size_norm$te_id <- rownames(te_counts_size_norm)
-te_counts_size_reads_norm <- te_counts_size_norm[, rownames(coldata)] / total_num_reads[rownames(coldata)]
-te_counts_size_reads_norm <- log1p(te_counts_size_reads_norm[, rownames(coldata)] * 1e+7)
-
-te_counts_size_reads_norm$te_id <- rownames(te_counts_size_reads_norm)
-te_counts_size_reads_norm_melt <- reshape2::melt(te_counts_size_reads_norm, by=list(c('te_id')))
+te_counts_size_reads_norm_melt <- reshape2::melt(te_counts_size_norm, by=list(c('te_id')))
 te_counts_size_reads_norm_melt$cluster <- sapply(str_split(te_counts_size_reads_norm_melt$variable, paste(obj_name, group_name, "", sep="_")),`[[`, 2)
-# te_counts_size_reads_norm_melt$cluster <- gsub("cluster_", "", sapply(str_split(te_counts_size_reads_norm_melt$variable, paste("_", group_name, "_", sep="")),`[[`, 2))
 
 te_counts_size_reads_norm_melt_percell <- merge(cells_clusters, te_counts_size_reads_norm_melt, by='cluster', all = T)
+te_counts_size_reads_norm_melt_percell <- merge(te_counts_size_reads_norm_melt_percell, FetchData(seurat.obj, "nCount_RNA"), by.x = "cell_ids", by.y = "row.names")
+te_counts_size_reads_norm_melt_percell$value <- log1p((te_counts_size_reads_norm_melt_percell$value / te_counts_size_reads_norm_melt_percell$nCount_RNA)* 1e+7)
 te_counts_size_reads_norm_melt_percell <- reshape2::dcast(te_counts_size_reads_norm_melt_percell, formula = te_id~cell_ids, value=value)
 rownames(te_counts_size_reads_norm_melt_percell) <- te_counts_size_reads_norm_melt_percell$te_id  
 te_counts_size_reads_norm_melt_percell <- te_counts_size_reads_norm_melt_percell[,-1]
@@ -187,15 +178,12 @@ te_counts_size_reads_norm_melt_percell <- te_counts_size_reads_norm_melt_percell
 seurat.obj[["TE_norm_cluster_size_num_reads"]] <- CreateAssayObject(counts = te_counts_size_reads_norm_melt_percell)
 
 te_counts_size_norm <- te_counts_size_norm[,c(colnames(te_counts_size_norm)[ncol(te_counts_size_norm)], colnames(te_counts_size_norm)[-ncol(te_counts_size_norm)])]
-te_counts_size_reads_norm <- te_counts_size_reads_norm[,c(colnames(te_counts_size_reads_norm)[ncol(te_counts_size_reads_norm)], colnames(te_counts_size_reads_norm)[-ncol(te_counts_size_reads_norm)])]
 te_counts <- te_counts[,c(colnames(te_counts)[ncol(te_counts)], colnames(te_counts)[-ncol(te_counts)])]
 te_counts$te_id <- rownames(te_counts)
 te_counts <- te_counts[,c("te_id",colnames(te_counts)[-ncol(te_counts)])]
 
 file_name <- ifelse(is.null(group_name), "TE_norm_cluster_size_matrix.csv", paste(group_name, "TE_norm_cluster_size_matrix.csv", sep="_"))
 fwrite(te_counts_size_norm, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
-file_name <- ifelse(is.null(group_name), "TE_norm_cluster_size_num_reads_matrix.csv", paste(group_name, "TE_norm_cluster_size_num_reads_matrix.csv", sep="_"))
-fwrite(te_counts_size_reads_norm, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
 # To compare with bulk data
 file_name <- ifelse(is.null(group_name), "TE_raw_matrix.csv", paste(group_name, "TE_raw_matrix.csv", sep="_"))
 fwrite(te_counts, paste(outdir, file_name, sep=''), quote = F, row.names = F, col.names = T, verbose = T)
