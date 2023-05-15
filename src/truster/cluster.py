@@ -129,7 +129,7 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def map_cluster(self, sample_id, fastq_dir, outdir, gene_gtf, star_index, RAM, out_tmp_dir = None, unique=False, slurm=None, modules=None, dry_run = False):
+    def map_cluster(self, sample_id, fastq_dir, outdir, gene_gtf, star_index, RAM, out_tmp_dir = None, unique=False, slurm=None, modules=None, snic_tmp = False, dry_run = False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("map_cluster_scripts"):
@@ -137,15 +137,20 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
     
-                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMreadID", "Number", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_") , "--limitBAMsortRAM", str(RAM)]
+                cmd = ["STAR", "--runThreadN", str(slurm["map_cluster"]["tasks-per-node"]), "--readFilesCommand", "gunzip", "-c", "--outSAMattributes", "All", "--outSAMreadID", "Number", "--outSAMtype", "BAM", "SortedByCoordinate", "--sjdbGTFfile", str(gene_gtf), "--genomeDir", str(star_index), "--limitBAMsortRAM", str(RAM)]
                 if unique:
                     cmd.extend(["--outFilterMultimapNmax", "1", "--outFilterMismatchNoverLmax", "0.03"])
                 else:
                     cmd.extend(["--outFilterMultimapNmax", "100", "--winAnchorMultimapNmax", "200"])
                 if out_tmp_dir != None:
-                    cmd.extend(["--out_tmp_dir", out_tmp_dir])
-                cmd.extend(["--readFilesIn", os.path.join(fastq_dir, (self.cluster_name + "_R2.fastq.gz"))])
+                    cmd.extend(["--outTmpDir", out_tmp_dir])
                 
+                cmd.extend(["--readFilesIn", os.path.join(fastq_dir, (self.cluster_name + "_R2.fastq.gz"))])
+                if snic_tmp:
+                    cmd.extend(["--outFileNamePrefix", (str(os.path.join("$SNIC_TMP/map_cluster/tmp", self.cluster_name)) + "_"), (" || exit 2; cp $SNIC_TMP/map_cluster/tmp/" + self.cluster_name + "_* " + outdir + "; echo 'Copying from tmp'")])
+                else:
+                    cmd.extend(["--outFileNamePrefix", (str(os.path.join(outdir, self.cluster_name)) + "_")])
+
                 result = run_instruction(cmd = cmd, fun = "map_cluster", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "map_cluster", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
                 exit_code = result[1]
 
@@ -156,7 +161,7 @@ class Cluster:
                 msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC
                 log.write(msg)
 
-    def TE_count(self, experiment_name, sample_id, bam, outdir, gene_gtf, te_gtf, s=1, unique=False, slurm=None, modules=None, dry_run = False):
+    def TE_count(self, experiment_name, sample_id, bam, outdir, gene_gtf, te_gtf, s=1, unique=False, slurm=None, modules=None, snic_tmp = False, dry_run = False):
         with open(self.logfile, "a") as log:
             try:
                 if not os.path.exists("TE_count_scripts"):
@@ -164,8 +169,15 @@ class Cluster:
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
                 
+                if snic_tmp:
+                    snic_bam_dir = "$SNIC_TMP/" # map_cluster/tmp/
+                    cmd = ["cp", bam, os.path.join(snic_bam_dir, (self.cluster_name + "_Aligned.sortedByCoord.out.bam") + ";\n")]
+                    bam = snic_bam_dir + self.cluster_name + "_Aligned.sortedByCoord.out.bam"
+                else:
+                    cmd = []
+
                 if unique:
-                    cmd = ["featureCounts", "-s", str(s), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), bam]
+                    cmd.extend(["featureCounts", "-s", str(s), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), (bam + " || exit 2;\n")])
                 else:
                     if s == 1:
                         stranded = "yes"
@@ -174,8 +186,8 @@ class Cluster:
                     elif s == 0:
                         stranded = "no"
                         
-                    cmd = ["TEcount", "-b", bam, "--GTF", gene_gtf, "--TE", te_gtf, "--format", "BAM", "--stranded", stranded, "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_"))]
-                
+                    cmd.extend(["TEcount", "-b", bam, "--GTF", gene_gtf, "--TE", te_gtf, "--format", "BAM", "--stranded", stranded, "--mode", "multi", "--sortByPos", "--project", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_"))])
+            
                 if unique:
                     function_name = "TE_count_unique"
                 else:

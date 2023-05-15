@@ -754,7 +754,7 @@ class Experiment:
                     print(msg)
                     log.write(msg)
 
-    def map_clusters(self, mode, outdir, gene_gtf, star_index, RAM, out_tmp_dir=None, unique=False, jobs=1):
+    def map_clusters(self, mode, outdir, gene_gtf, star_index, RAM, out_tmp_dir=None, unique=False, jobs=1, snic_tmp = False):
         print("Running map_clusters with " + str(jobs) + " jobs.\n")
         if unique:
             subdirectory = "unique"
@@ -772,7 +772,7 @@ class Experiment:
                             for cluster in clusters.values():
                                 fastq_dir = os.path.join(outdir, "merged_cluster/")
                                 map_outdir = os.path.join(outdir, "map_cluster/", subdirectory)
-                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, "Merged", fastq_dir, map_outdir, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
+                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, "Merged", fastq_dir, map_outdir, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules, snic_tmp))
                 elif mode == "per_sample":
                     samples_dict = self.samples
 
@@ -781,7 +781,7 @@ class Experiment:
                             for cluster in sample.clusters:
                                 fastq_dir = os.path.join(outdir, "concatenate_lanes/", sample_id)
                                 outdir_sample = os.path.join(outdir, "map_cluster/", subdirectory, sample_id)
-                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, sample_id, fastq_dir, outdir_sample, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules))
+                                self.map_cluster_results.append(executor.submit(cluster.map_cluster, sample_id, fastq_dir, outdir_sample, gene_gtf, star_index, RAM, out_tmp_dir, unique, self.slurm, self.modules, snic_tmp))
                 else:
                     msg = "Please specify a mode (merged/per_sample).\n"
                     print(msg)
@@ -804,7 +804,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
         
-    def TE_counts_clusters(self, mode, outdir, gene_gtf, te_gtf, unique=False, s=1, jobs=1):
+    def TE_counts_clusters(self, mode, outdir, gene_gtf, te_gtf, unique=False, s=1, jobs=1, snic_tmp = False):
         print("Running TE_counts with " + str(jobs) + " jobs.\n")
         if unique:
             subdirectory = "unique"
@@ -824,7 +824,7 @@ class Experiment:
                             for cluster in clusters.values():
                                 bam = os.path.join(outdir, "map_cluster/", subdirectory, (cluster.cluster_name + "_Aligned.sortedByCoord.out.bam"))
                                 outdir_sample = os.path.join(outdir, "TE_counts/", subdirectory)
-                                self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, "Merged", bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules))
+                                self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, "Merged", bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules, snic_tmp))
                 else:
                     if mode == "per_sample":
                         samples_dict = self.samples
@@ -834,7 +834,7 @@ class Experiment:
                                 for cluster in sample.clusters:
                                     bam = os.path.join(outdir, "map_cluster/", subdirectory, sample_id, (cluster.cluster_name + "_Aligned.sortedByCoord.out.bam"))
                                     outdir_sample = os.path.join(outdir, "TE_counts/", subdirectory, sample_id)
-                                    self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, sample_id, bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules))
+                                    self.TE_counts_results.append(executor.submit(cluster.TE_count, self.name, sample_id, bam, outdir_sample, gene_gtf, te_gtf, s, unique, self.slurm, self.modules, snic_tmp))
                             
                     else:
                         msg = "Please specify a mode (merged/per_sample).\n"
@@ -922,7 +922,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, snic_tmp = False, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
         with open(self.logfile, "a") as log:
             if mode == "merged" and self.merge_samples_dict is None:
                 msg = f"For merged mode please run merge_samples() or set_merge_clusters_outdir() first.\n"
@@ -1031,7 +1031,7 @@ class Experiment:
                         current_instruction = "map_cluster"
                         msg = "merge_clusters finished! Moving on to " + current_instruction
                         log.write(msg)
-                        map_cluster = self.map_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, star_index = star_index, RAM = RAM, out_tmp_dir = out_tmp_dir, unique = unique, jobs = jobs)
+                        map_cluster = self.map_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, star_index = star_index, RAM = RAM, out_tmp_dir = out_tmp_dir, unique = unique, jobs = jobs, snic_tmp = snic_tmp)
                         if not map_cluster:
                             msg = "Error in map_cluster"
                             print(msg)
@@ -1042,7 +1042,7 @@ class Experiment:
                         current_instruction = "TE_counts"
                         msg = "map_cluster finished! Moving on to " + current_instruction
                         log.write(msg)
-                        TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, s = s, jobs = jobs)
+                        TE_counts = self.TE_counts_clusters(mode = mode, outdir = outdir, gene_gtf = gene_gtf, te_gtf = te_gtf, unique = unique, s = s, jobs = jobs, snic_tmp = snic_tmp)
                         if not TE_counts:
                             msg = "Error in TE_counts"
                             print(msg)
