@@ -30,6 +30,8 @@ option_list = list(
               help="Sample id or name", metavar="character"),
   make_option(c("-g", "--groupName"), type="character", default=NULL,
               help="Group name", metavar="character"),
+  make_option(c("-e", "--include_genes"), type="character", default=NULL,
+              help="Include genes in the output? true/false", metavar="character"),
   make_option(c("-f", "--byFactor"), type="character", default="seurat_clusters",
               help="Groupping factor (Default = seurat_clusters)", metavar="character"),
   make_option(c("-s", "--samples"), type="character", default=NULL,
@@ -52,6 +54,7 @@ mode <- trimws(opt$mode)
 rds <- opt$RDS
 obj_name <- opt$name
 group_name <- opt$groupName
+include_genes <- as.logical(toupper(opt$include_genes))
 by_factor <- if(grepl(",", opt$byFactor)) unlist(str_split(opt$byFactor, ",")) else opt$byFactor
 samples <- unlist(str_split(opt$samples, ","))
 indir <- ifelse(endsWith(opt$indir, "/"), opt$indir, paste(opt$indir, '/', sep=''))
@@ -121,7 +124,9 @@ rownames(coldata) <- coldata$name
 coldata <- merge(coldata, cluster_sizes[,c('name', 'cluster.size')], by='name')
 rownames(coldata) <- coldata$name
 
-TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENS'))
+if(!include_genes){
+  TEcounts <- subset(TEcounts, !startsWith(TEcounts$TE, 'ENS'))    
+}
 
 #### TE_norm_cluster_size ####
 rownames(coldata) <- coldata$name
@@ -190,6 +195,6 @@ fwrite(te_counts, paste(outdir, file_name, sep=''), quote = F, row.names = F, co
 
 rds <- paste(unlist(str_split(rds, ".rds"))[1], "_", group_name, ".rds", sep="")
 saveRDS(seurat.obj, file = rds)
-
+write.table(coldata, paste(outdir, "coldata.tab", sep=""), quote = F)
 
 

@@ -858,7 +858,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def normalize_TE_counts(self, mode, outdir, groups, factor="seurat_clusters", unique=False, dry_run=False, jobs=1):
+    def normalize_TE_counts(self, mode, outdir, groups, factor="seurat_clusters", unique=False, include_genes=False, dry_run=False, jobs=1):
         print("Running normalize_TE_counts with " + str(jobs) + " jobs.\n")
         def normalize_TE_counts_per_merged_group(group_name, group, indir, outdir_norm, dry_run):
             rdata = os.path.join(self.merge_samples_outdir, (self.name + ".rds"))
@@ -869,7 +869,7 @@ class Experiment:
                 os.makedirs(outdir_norm, exist_ok=True)
             
             cwd = os.path.dirname(os.path.realpath(__file__))
-            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-f", factor, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
+            cmd = ["Rscript", os.path.join(cwd, "r_scripts/normalize_TEexpression.R"), "-m", "merged", "-g", group_name, "-e", str(include_genes), "-f", factor, "-s", ','.join(group), "-o", outdir_norm, "-i", indir, "-r", rdata, "-n", (self.name)]
             result = run_instruction(cmd = cmd, fun = "normalize_TE_counts", fun_module = "normalize_TE_counts", dry_run = dry_run, name = (self.name + "_" + group_name), logfile = self.logfile, slurm = self.slurm, modules = self.modules)
             return result[1]
             
@@ -922,7 +922,7 @@ class Experiment:
                 print(msg)
                 log.write(msg)
 
-    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, snic_tmp = False, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True):
+    def process_clusters(self, mode, outdir, gene_gtf, te_gtf, star_index, RAM, groups = None, factor = "seurat_clusters", out_tmp_dir = None, unique=False, s=1, jobs=1, snic_tmp = False, tsv_to_bam = True, filter_UMIs = True, bam_to_fastq = True, concatenate_lanes = True, merge_clusters = True, map_cluster = True, TE_counts = True, normalize_TE_counts = True, include_genes = False):
         with open(self.logfile, "a") as log:
             if mode == "merged" and self.merge_samples_dict is None:
                 msg = f"For merged mode please run merge_samples() or set_merge_clusters_outdir() first.\n"
@@ -1053,7 +1053,7 @@ class Experiment:
                         current_instruction = "normalize_TE_counts"
                         msg = "TE_counts finished! Moving on to " + current_instruction
                         log.write(msg)
-                        normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, factor = factor, unique = unique, jobs = jobs)
+                        normalize_TE_counts = self.normalize_TE_counts(mode = mode, outdir = outdir, groups = groups, include_genes = include_genes, factor = factor, unique = unique, jobs = jobs)
                         if not normalize_TE_counts:
                             msg = "Error in normalize_TE_counts"
                             print(msg)
