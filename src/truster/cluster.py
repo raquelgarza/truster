@@ -177,7 +177,7 @@ class Cluster:
                     cmd = []
 
                 if unique:
-                    cmd.extend(["featureCounts", "-s", str(s), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), (bam + " || exit 2;\n")])
+                    cmd.extend(["featureCounts", "-s", str(s), "-F", "GTF", "-g", "transcript_id", "-a", te_gtf, "-o", os.path.join(outdir, (experiment_name + "_" + self.cluster_name + "_uniqueMap.cntTable")), bam])
                 else:
                     if s == 1:
                         stranded = "yes"
