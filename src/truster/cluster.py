@@ -44,7 +44,7 @@ class Cluster:
                 
                 cwd = os.path.dirname(os.path.realpath(__file__))
                 
-                cmd = ["python", os.path.join(cwd, "py_scripts/filterUMIs"), "-i", inbam, "-o", outbam]
+                cmd = ["samtools view","-b", "-o", outbam, "-F", "0x400", inbam] # Remove PCR duplicates as annotated by cellranger
                 result = run_instruction(cmd = cmd, fun = "filter_UMIs", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "filter_UMIs", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
                 exit_code = result[1]
 
