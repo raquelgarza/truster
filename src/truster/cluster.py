@@ -63,7 +63,7 @@ class Cluster:
                     os.makedirs("bam_to_fastq_scripts", exist_ok=True)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, exist_ok=True)
-                cmd = ["bamtofastq-1.2.0", bam, (outdir + "/" + self.cluster_name)]
+                cmd = ["bamtofastq", bam, (outdir + "/" + self.cluster_name)]
                 result = run_instruction(cmd = cmd, fun = "bam_to_fastq", name = ("sample_" + sample_id + "_cluster_" +  self.cluster_name), fun_module = "bam_to_fastq", dry_run = dry_run, logfile = self.logfile, slurm = slurm, modules = modules)
                 exit_code = result[1]
 
@@ -88,10 +88,13 @@ class Cluster:
                 # Walk through the files in the indir
                 for root, subdirs, files in os.walk(os.path.join(indir, self.cluster_name)):
                     # If there is more than one subdirectory, we could be dealing with different library types
+                    if len(subdirs) > 1: 
+                        log.write("WARNING: I'm assuming library type 0 is gene expression. Please check I'm right. You have more than one library folder from sample " + sample_id + ", in: " + indir)
                     # The subdirectories have the form of sampleid_0_1_ID
                     for subdir in subdirs:
                         # We use sample_id to split as sample_id might contain underscores
-                        library_type = subdir.split(sample_id)[1].split("_")[1:3]
+                        library_type = subdir.split("_")[-3:] # Library ID, GEM group, Flowcell ID
+                        library_type = library_type[:-1] # We dont care about the flowcell ID
                         if library_type == ["0", "1"]: # Gene expression
                             # For each of the gene expression libraries found in this sample, we walk through the files
                             for root_in_subdir, subdirs_in_subdir, files_in_subdir in os.walk(os.path.join(indir, self.cluster_name, subdir)):
