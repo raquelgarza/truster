@@ -1,7 +1,6 @@
 #! /bin/python3
 import subprocess
 from subprocess import PIPE
-import pandas as pd
 import time
 from .bcolors import Bcolors
 import os
@@ -49,6 +48,7 @@ def run_job(function, job_file, code, slurm, modules, dry_run = False):
                 fout.writelines("module load " + str(i) + "\n")
         except:
             pass
+        fout.writelines('echo "' + code + '" || exit 2 \n')
         fout.writelines(code + " || exit 2 \n")
 
     if dry_run:
