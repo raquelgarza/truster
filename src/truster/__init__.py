@@ -14,5 +14,4 @@ import concurrent.futures
 import copy
 import subprocess
 from subprocess import PIPE
-import pandas as pd
 import time
