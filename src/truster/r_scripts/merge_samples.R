@@ -100,7 +100,7 @@ for(i in 1:length(ids)){
   
   embedding_origcellIds <- merge(embedding, experiment[['original_cellIds']][rownames(embedding),,drop=F], by='row.names')
   rownames(embedding_origcellIds) <- embedding_origcellIds$original_cellIds
-  embedding_origcellIds <- embedding_origcellIds[,c("UMAP_1", "UMAP_2")]
+  embedding_origcellIds <- embedding_origcellIds[,c("umap_1", "umap_2")]
   
   cluster_colours <- experiment[[c("original_cellIds", "seurat_clusters", "cluster_colours")]][rownames(embedding),,drop=F]
   rownames(cluster_colours) <- cluster_colours$original_cellIds
