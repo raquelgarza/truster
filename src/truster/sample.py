@@ -2,6 +2,7 @@
 import subprocess
 import os
 import json
+import re
 import sys
 from .jobHandler import *
 import pysam
@@ -18,6 +19,26 @@ class Sample:
         self.raw_path = raw_path
         self.rdata_path = rdata_path
         self.logfile = logfile
+
+    def md5sum(self, outdir):
+        if not os.path.exists("md5sum_scripts/"):
+            os.makedirs("md5sum_scripts", exist_ok=True)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+
+        samples_files = []
+        sample_outfile = os.path.join(outdir, (self.sample_name + "_md5.txt"))
+        with open(self.logfile, "a") as log:
+            try:
+                for root, dirs, files in os.walk(self.raw_path):
+                  for file in files:
+                    if self.sample_name in file:
+                       samples_files.append(file)
+                       cmd = "md5 " + os.path.join(root, file) + " >> " + sample_outfile + " || exit 2"
+                       subprocess.run(cmd, shell=True)
+            except KeyboardInterrupt:
+                msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n"
+                log.write(msg)
 
     def quantify(self, cr_index, indir, outdir, nuclei = False):
         dry_run = False

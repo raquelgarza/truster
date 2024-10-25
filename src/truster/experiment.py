@@ -98,6 +98,18 @@ class Experiment:
                     log.write(msg)
                     print(msg)
 
+    def md5sum_samples(self, outdir, jobs=1):
+        try:
+            with open(self.logfile, "a") as log:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                    for sample in self.samples.values():
+                        executor.submit(sample.md5sum, outdir)
+        except KeyboardInterrupt:
+            msg = Bcolors.HEADER + "User interrupted" + Bcolors.ENDC + "\n" + ".\n"
+            print(msg)
+            with open(self.logfile, "a") as log:
+                log.write(msg)
+
     # nuclei can be a dictionary with sample ids as keys and bools as values (if it's nuclei or not)
     def quantify(self, cr_index, outdir, nuclei = False, jobs=1):
         try:
@@ -127,6 +139,7 @@ class Experiment:
             print(msg)
             with open(self.logfile, "a") as log:
                 log.write(msg)
+
 
     def set_quantification_outdir(self, sample_id, cellranger_outdir):
         with open(self.logfile, "a") as log:
